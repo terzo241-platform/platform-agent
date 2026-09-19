@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ford Platform Agent — Architecture &amp; Implementation Summary</title>
+<style>
+  :root {
+    --ford-blue: #003478;
+    --ford-light: #0068D6;
+    --accent: #00A3E0;
+    --success: #00B377;
+    --warn: #F5A623;
+    --bg: #F7F9FC;
+    --card: #FFFFFF;
+    --text: #1A2B3C;
+    --muted: #6B7B8D;
+    --border: #E2E8F0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--ford-blue), var(--ford-light));
+    color: white;
+    padding: 3rem 2rem 2.5rem;
+    text-align: center;
+  }
+  .header h1 { font-size: 2.2rem; font-weight: 700; letter-spacing: -0.5px; }
+  .header .subtitle { font-size: 1.1rem; opacity: 0.85; margin-top: 0.5rem; }
+  .header .badge-row { margin-top: 1.2rem; display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
+  .badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+
+  /* Container */
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* Section */
+  .section { margin-bottom: 2.5rem; }
+  .section-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--ford-blue);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--accent);
+    display: inline-block;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .card h3 { font-size: 1.05rem; color: var(--ford-blue); margin-bottom: 0.5rem; }
+
+  /* Architecture Diagram */
+  .arch-diagram {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    overflow-x: auto;
+    white-space: pre;
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .arch-diagram .layer-label {
+    color: var(--ford-light);
+    font-weight: 700;
+  }
+  .arch-diagram .highlight { color: var(--accent); font-weight: 600; }
+  .arch-diagram .done { color: var(--success); }
+  .arch-diagram .pending { color: var(--warn); }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 0.75rem; }
+  @media (max-width: 768px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  }
+
+  /* Tool cards */
+  .tool-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    text-align: center;
+  }
+  .tool-card .icon { font-size: 1.8rem; margin-bottom: 0.4rem; }
+  .tool-card .label { font-weight: 600; font-size: 0.9rem; color: var(--ford-blue); }
+  .tool-card .count { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; }
+
+  /* Timeline */
+  .timeline { position: relative; padding-left: 2rem; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.55rem;
+    top: 0.3rem;
+    bottom: 0.3rem;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item { position: relative; margin-bottom: 1.2rem; }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -1.65rem;
+    top: 0.35rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    background: white;
+  }
+  .timeline-item.done::before { background: var(--success); border-color: var(--success); }
+  .timeline-item.active::before { background: var(--accent); border-color: var(--accent); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(0,163,224,0.3); } 50% { box-shadow: 0 0 0 6px rgba(0,163,224,0); } }
+  .timeline-item .day { font-weight: 700; color: var(--ford-blue); font-size: 0.88rem; }
+  .timeline-item .desc { font-size: 0.85rem; color: var(--muted); }
+
+  /* Stats row */
+  .stats-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .stat-box {
+    flex: 1;
+    min-width: 140px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+  }
+  .stat-box .number { font-size: 1.8rem; font-weight: 800; color: var(--ford-light); }
+  .stat-box .label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th { background: var(--ford-blue); color: white; padding: 0.6rem 0.8rem; text-align: left; font-weight: 600; }
+  th:first-child { border-radius: 8px 0 0 0; }
+  th:last-child { border-radius: 0 8px 0 0; }
+  td { padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: #F0F5FF; }
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .tag-read { background: #E8F5E9; color: #2E7D32; }
+  .tag-write { background: #FFF3E0; color: #E65100; }
+  .tag-destruct { background: #FFEBEE; color: #C62828; }
+
+  /* Flow diagram */
+  .flow-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+    margin: 1rem 0;
+  }
+  .flow-box {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.82rem;
+    text-align: center;
+    min-width: 110px;
+  }
+  .flow-arrow { font-size: 1.2rem; color: var(--muted); }
+  .flow-client { background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB; }
+  .flow-mcp { background: #F3E5F5; color: #7B1FA2; border: 1px solid #CE93D8; }
+  .flow-agent { background: #E8F5E9; color: #2E7D32; border: 1px solid #A5D6A7; }
+  .flow-provider { background: #FFF3E0; color: #E65100; border: 1px solid #FFCC80; }
+  .flow-infra { background: #ECEFF1; color: #37474F; border: 1px solid #B0BEC5; }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== HEADER ========== -->
+<div class="header">
+  <h1>Ford Agentic Development Platform</h1>
+  <div class="subtitle">AI-powered Platform Engineering Agent &mdash; Phase 3 Implementation Summary</div>
+  <div class="badge-row">
+    <span class="badge">Google ADK v2.6.2</span>
+    <span class="badge">MCP v2.2.0</span>
+    <span class="badge">Spec 2026-07-28</span>
+    <span class="badge">17 Tools</span>
+    <span class="badge">63 Tests</span>
+    <span class="badge">4 Providers</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ========== WHAT IS THIS ========== -->
+<div class="section">
+  <div class="section-title">What Is This?</div>
+  <div class="card">
+    <p>An <strong>AI agent</strong> that lets developers interact with CI/CD pipelines, source control, GitOps deployments, and infrastructure using <strong>natural language</strong>. Instead of learning 4 different tools (GitHub, Tekton, ArgoCD, Terraform), developers talk to one agent.</p>
+    <br>
+    <p style="color:var(--muted); font-size:0.9rem;">
+      <strong>Example:</strong> <em>"Deploy my-api to staging"</em> &rarr; The agent figures out which CI/CD system runs it, triggers the pipeline, monitors status, and reports back. No manual clicking through UIs.
+    </p>
+  </div>
+</div>
+
+<!-- ========== HOW IT WORKS (FLOW) ========== -->
+<div class="section">
+  <div class="section-title">How It Works &mdash; Request Flow</div>
+
+  <div class="flow-row">
+    <div class="flow-box flow-client">Developer<br><small>Claude Code / VS Code / CLI</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box flow-mcp">MCP Server<br><small>stdio or HTTP</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box flow-agent">ADK Agent<br><small>Gemini Flash / Claude</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box flow-provider">Provider Router<br><small>Auto-detect backend</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-box flow-infra">GitHub / Tekton<br>ArgoCD / Terraform</div>
+  </div>
+
+  <div class="card" style="margin-top:1rem; font-size:0.88rem;">
+    <strong>Step by step:</strong>
+    <ol style="margin-top:0.5rem; padding-left:1.2rem; color:var(--muted);">
+      <li><strong>Developer asks</strong> in natural language via any MCP-compatible client</li>
+      <li><strong>MCP Server</strong> receives the request, routes to the right tool (17 available)</li>
+      <li><strong>ADK Agent</strong> reasons about intent, selects tools, applies guardrails</li>
+      <li><strong>Provider Registry</strong> auto-detects which backend to call (GitHub? Tekton? ArgoCD?)</li>
+      <li><strong>Action executes</strong> against the real infrastructure, with audit logging</li>
+      <li><strong>Result returns</strong> to the developer in plain language</li>
+    </ol>
+  </div>
+</div>
+
+<!-- ========== ARCHITECTURE DIAGRAM ========== -->
+<div class="section">
+  <div class="section-title">Architecture Diagram</div>
+  <div class="arch-diagram"><span class="layer-label">CLIENT LAYER</span>                          <span class="layer-label">AGENT LAYER</span>                           <span class="layer-label">INFRASTRUCTURE</span>
+
+  ┌──────────────┐                    ┌─────────────────────────────────────────────┐
+  │ <span class="highlight">Claude Code</span>  │───┐                │  <span class="highlight">Ford Platform Agent</span>  (Google ADK v2.6.2)   │
+  └──────────────┘   │                │                                             │
+  ┌──────────────┐   │  ┌──────────┐  │  ┌──────────┐  ┌─────────────────────────┐  │    ┌────────────────┐
+  │ <span class="highlight">VS Code</span>      │───┼──│ <span class="highlight">MCP</span>      │──│──│ Guardrail │──│ <span class="done">CI/CD Tools</span>    (4 tools)│──│───▶│ GitHub Actions  │
+  └──────────────┘   │  │ Server   │  │  │ Engine   │  │ <span class="done">SCM Tools</span>      (4 tools)│──│───▶│ Tekton Pipelines│
+  ┌──────────────┐   │  │ (v2.2.0) │  │  │          │  │ <span class="done">GitOps Tools</span>   (5 tools)│──│───▶│ ArgoCD          │
+  │ <span class="highlight">Gemini CLI</span>   │───┤  │ stdio /  │  │  │ Rate Limit│  │ <span class="done">Infra Tools</span>    (4 tools)│──│───▶│ Terraform GitOps│
+  └──────────────┘   │  │ HTTP     │  │  │ Audit    │  └─────────────────────────┘  │    └────────────────┘
+  ┌──────────────┐   │  └──────────┘  │  │ HITL     │                               │
+  │ <span class="highlight">Any MCP</span>      │───┘                │  └──────────┘  ┌─────────────────────────┐  │
+  │ <span class="highlight">Client</span>       │                    │               │ <span class="highlight">Knowledge as Code</span>       │  │
+  └──────────────┘                    │               │ practices/ guardrails/   │  │
+                                      │               │ runbooks/               │  │
+                                      │               └─────────────────────────┘  │
+                                      │                                             │
+                                      │  <span class="highlight">LLM</span>: Gemini 2.5 Flash (90%) + Claude (10%)│
+                                      │  Both via <span class="highlight">Vertex AI</span> (VPC-SC, CMEK, IAM)     │
+                                      └─────────────────────────────────────────────┘</div>
+</div>
+
+<!-- ========== STATS ========== -->
+<div class="section">
+  <div class="stats-row">
+    <div class="stat-box"><div class="number">17</div><div class="label">MCP Tools</div></div>
+    <div class="stat-box"><div class="number">4</div><div class="label">Providers</div></div>
+    <div class="stat-box"><div class="number">63</div><div class="label">Tests Passing</div></div>
+    <div class="stat-box"><div class="number">3</div><div class="label">Days Built</div></div>
+    <div class="stat-box"><div class="number">$88</div><div class="label">/mo LLM Cost</div></div>
+  </div>
+</div>
+
+<!-- ========== 4 TOOL CATEGORIES ========== -->
+<div class="section">
+  <div class="section-title">17 Tools Across 4 Categories</div>
+  <div class="grid-4">
+    <div class="tool-card">
+      <div class="icon">&#9881;</div>
+      <div class="label">CI/CD</div>
+      <div class="count">4 tools &middot; GHA + Tekton</div>
+    </div>
+    <div class="tool-card">
+      <div class="icon">&#128193;</div>
+      <div class="label">Source Control</div>
+      <div class="count">4 tools &middot; GitHub API</div>
+    </div>
+    <div class="tool-card">
+      <div class="icon">&#128640;</div>
+      <div class="label">GitOps</div>
+      <div class="count">5 tools &middot; ArgoCD</div>
+    </div>
+    <div class="tool-card">
+      <div class="icon">&#9968;</div>
+      <div class="label">Infrastructure</div>
+      <div class="count">4 tools &middot; Terraform</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1rem; overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Tool</th>
+          <th>Category</th>
+          <th>Risk Level</th>
+          <th>What It Does</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>list_pipeline_runs</td><td>CI/CD</td><td><span class="tag tag-read">Read</span></td><td>Show recent pipeline runs for a repo</td></tr>
+        <tr><td>get_pipeline_status</td><td>CI/CD</td><td><span class="tag tag-read">Read</span></td><td>Latest build status on a branch</td></tr>
+        <tr><td>trigger_pipeline</td><td>CI/CD</td><td><span class="tag tag-write">Write</span></td><td>Start a CI/CD run</td></tr>
+        <tr><td>cancel_pipeline</td><td>CI/CD</td><td><span class="tag tag-destruct">Destructive</span></td><td>Abort a running pipeline</td></tr>
+        <tr><td>list_repositories</td><td>SCM</td><td><span class="tag tag-read">Read</span></td><td>List all repos in the org</td></tr>
+        <tr><td>get_repository_info</td><td>SCM</td><td><span class="tag tag-read">Read</span></td><td>Repo details (language, branch, CI)</td></tr>
+        <tr><td>list_pull_requests</td><td>SCM</td><td><span class="tag tag-read">Read</span></td><td>Open/closed PRs for a repo</td></tr>
+        <tr><td>create_pull_request</td><td>SCM</td><td><span class="tag tag-write">Write</span></td><td>Open a new PR</td></tr>
+        <tr><td>list_gitops_applications</td><td>GitOps</td><td><span class="tag tag-read">Read</span></td><td>All ArgoCD apps with sync status</td></tr>
+        <tr><td>get_application_status</td><td>GitOps</td><td><span class="tag tag-read">Read</span></td><td>Detailed app health + images</td></tr>
+        <tr><td>sync_application</td><td>GitOps</td><td><span class="tag tag-destruct">Destructive</span></td><td>Trigger deployment sync</td></tr>
+        <tr><td>rollback_application</td><td>GitOps</td><td><span class="tag tag-destruct">Destructive</span></td><td>Revert to a previous deployment</td></tr>
+        <tr><td>get_deployment_history</td><td>GitOps</td><td><span class="tag tag-read">Read</span></td><td>Past deployment revisions</td></tr>
+        <tr><td>list_environments</td><td>Infra</td><td><span class="tag tag-read">Read</span></td><td>Golden path defaults (dev/stg/prod)</td></tr>
+        <tr><td>get_plan_output</td><td>Infra</td><td><span class="tag tag-read">Read</span></td><td>Read terraform plan from PR comments</td></tr>
+        <tr><td>create_service_pr</td><td>Infra</td><td><span class="tag tag-write">Write</span></td><td>Generate TF config &amp; open PR</td></tr>
+        <tr><td>approve_and_merge</td><td>Infra</td><td><span class="tag tag-destruct">Destructive</span></td><td>Merge PR (separation of duties enforced)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== KEY DESIGN DECISIONS ========== -->
+<div class="section">
+  <div class="section-title">Key Design Decisions (Internet-Grounded)</div>
+  <div class="grid-2">
+    <div class="card">
+      <h3>Why Google ADK?</h3>
+      <p style="font-size:0.88rem; color:var(--muted);">
+        21.6k GitHub stars, Apache-2.0, GCP-native. Ford has a 6-year Google partnership ("Team Upshift").
+        ADK supports multi-LLM (Gemini + Claude + OpenAI), MCP-native tool exposure,
+        and deploys to Cloud Run / GKE / Vertex AI Agent Runtime.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Why Not RAG?</h3>
+      <p style="font-size:0.88rem; color:var(--muted);">
+        Ford has zero public engineering docs &mdash; corpus is small enough to fit in context.
+        Knowledge-as-Code: version-controlled YAML/MD in <code>knowledge/</code> directory,
+        loaded as agent instruction at startup. Contributable by any team member.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Why Provider Abstraction?</h3>
+      <p style="font-size:0.88rem; color:var(--muted);">
+        No single point of failure. Ford uses both GitHub Actions and Tekton.
+        Protocol-based providers (CIProvider, SCMProvider, GitOpsProvider) let the agent
+        auto-route to the right backend per repo. Swap providers without changing tools.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Why MCP over Custom API?</h3>
+      <p style="font-size:0.88rem; color:var(--muted);">
+        MCP spec 2026-07-28 is the industry standard &mdash; 10,000+ servers in production.
+        One server works with Claude Code, VS Code Copilot, Cursor, Gemini CLI, and any future client.
+        Tool annotations (readOnly/destructive/idempotent) enable automatic safety UX.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ========== GUARDRAILS ========== -->
+<div class="section">
+  <div class="section-title">Enterprise Guardrails (OWASP LLM06)</div>
+  <div class="card">
+    <div style="display:flex; gap:2rem; flex-wrap:wrap;">
+      <div style="flex:1; min-width:200px;">
+        <h3 style="margin-bottom:0.5rem;">4-Layer Protection</h3>
+        <ol style="font-size:0.88rem; color:var(--muted); padding-left:1.2rem;">
+          <li><strong>Tool Scoping</strong> &mdash; Each tool declares its blast radius</li>
+          <li><strong>Pre-execution</strong> &mdash; Rate limiting + RBAC checks</li>
+          <li><strong>Human-in-the-Loop</strong> &mdash; Prod actions require confirmation</li>
+          <li><strong>Audit Trail</strong> &mdash; Every action logged (BigQuery in prod)</li>
+        </ol>
+      </div>
+      <div style="flex:1; min-width:200px;">
+        <h3 style="margin-bottom:0.5rem;">Environment Rules</h3>
+        <table style="font-size:0.82rem;">
+          <tr><td><strong>dev</strong></td><td style="color:var(--success);">Auto-approve all</td></tr>
+          <tr><td><strong>staging</strong></td><td style="color:var(--warn);">Auto-approve + warn</td></tr>
+          <tr><td><strong>prod</strong></td><td style="color:#C62828;">Always require human approval</td></tr>
+        </table>
+        <p style="font-size:0.82rem; color:var(--muted); margin-top:0.5rem;">
+          <strong>Separation of duties:</strong> PR author &ne; merger (enforced in code)
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== LLM STRATEGY ========== -->
+<div class="section">
+  <div class="section-title">Dual-Tier LLM Strategy</div>
+  <div class="card" style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr><th>Tier</th><th>Model</th><th>Usage</th><th>Cost / MTok</th><th>Est. Monthly</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Routing (90%)</strong></td>
+          <td>Gemini 2.5 Flash</td>
+          <td>Tool selection, status queries, simple ops</td>
+          <td>$0.30 / $2.50</td>
+          <td>~$62</td>
+        </tr>
+        <tr>
+          <td><strong>Reasoning (10%)</strong></td>
+          <td>Claude Sonnet 5</td>
+          <td>Complex analysis, incident triage, code gen</td>
+          <td>$2.00 / $10.00</td>
+          <td>~$26</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:0.82rem; color:var(--muted); margin-top:0.5rem;">
+      Both models accessed via <strong>Vertex AI</strong> &mdash; VPC-SC, CMEK, IAM, audit logs from GCP infra. No separate vendor contract needed for Claude.
+    </p>
+  </div>
+</div>
+
+<!-- ========== MCP CLIENT INTEGRATION ========== -->
+<div class="section">
+  <div class="section-title">Connect Any MCP Client</div>
+  <div class="grid-3">
+    <div class="card" style="text-align:center;">
+      <h3>Claude Code</h3>
+      <code style="font-size:0.78rem; background:#F0F5FF; padding:0.4rem; border-radius:6px; display:block; margin-top:0.5rem;">
+        claude mcp add<br>ford-platform-agent<br>-- ford-agent mcp
+      </code>
+    </div>
+    <div class="card" style="text-align:center;">
+      <h3>VS Code Copilot</h3>
+      <p style="font-size:0.85rem; color:var(--muted); margin-top:0.5rem;">
+        Copy <code>.vscode/mcp.json</code><br>to your workspace root
+      </p>
+    </div>
+    <div class="card" style="text-align:center;">
+      <h3>HTTP / Cloud</h3>
+      <code style="font-size:0.78rem; background:#F0F5FF; padding:0.4rem; border-radius:6px; display:block; margin-top:0.5rem;">
+        ford-agent mcp<br>--transport streamable-http<br>--port 8080
+      </code>
+    </div>
+  </div>
+</div>
+
+<!-- ========== TIMELINE ========== -->
+<div class="section">
+  <div class="section-title">Implementation Timeline &mdash; 20-Day POC</div>
+  <div class="grid-2">
+
+    <div>
+      <h3 style="color:var(--success); margin-bottom:0.8rem; font-size:0.95rem;">&#10004; Completed (Days 1&ndash;12)</h3>
+      <div class="timeline">
+        <div class="timeline-item done">
+          <div class="day">Days 1&ndash;2 &mdash; CI/CD Foundation</div>
+          <div class="desc">GitHub org, 4 repos, 3 reusable workflows (Python/Node/Java)</div>
+        </div>
+        <div class="timeline-item done">
+          <div class="day">Days 3&ndash;4 &mdash; Security &amp; Testing</div>
+          <div class="desc">Trivy + gitleaks + SBOM + CodeQL + Playwright 3-shard E2E</div>
+        </div>
+        <div class="timeline-item done">
+          <div class="day">Day 5 &mdash; Supply Chain</div>
+          <div class="desc">Container build + cosign signing + OIDC + SLSA provenance</div>
+        </div>
+        <div class="timeline-item done">
+          <div class="day">Days 6&ndash;9 &mdash; Terraform Platform</div>
+          <div class="desc">Cloud Run + GCS modules, GitOps workflow, multi-env promotion</div>
+        </div>
+        <div class="timeline-item done">
+          <div class="day">Day 10 &mdash; Agent Architecture</div>
+          <div class="desc">Google ADK, 4 providers, 13 tools, guardrails, knowledge engine</div>
+        </div>
+        <div class="timeline-item done">
+          <div class="day">Day 11 &mdash; Infra Orchestration</div>
+          <div class="desc">Terraform tools, golden path templates, separation of duties</div>
+        </div>
+        <div class="timeline-item done">
+          <div class="day">Day 12 &mdash; MCP Server</div>
+          <div class="desc">17 tools via MCP v2.2.0, tool annotations, dual transport</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="color:var(--warn); margin-bottom:0.8rem; font-size:0.95rem;">&#9203; Upcoming (Days 13&ndash;20)</h3>
+      <div class="timeline">
+        <div class="timeline-item active">
+          <div class="day">Day 13 &mdash; Natural Language Interface</div>
+          <div class="desc">End-to-end NL queries via ADK Runner, conversation memory</div>
+        </div>
+        <div class="timeline-item">
+          <div class="day">Day 14 &mdash; Scaffold / Template Engine</div>
+          <div class="desc">"Create a new microservice" &rarr; full repo with CI/CD + TF + ArgoCD</div>
+        </div>
+        <div class="timeline-item">
+          <div class="day">Day 15 &mdash; Chat UI</div>
+          <div class="desc">Lightweight web interface for non-CLI developers</div>
+        </div>
+        <div class="timeline-item">
+          <div class="day">Days 16&ndash;17 &mdash; DORA Metrics</div>
+          <div class="desc">Deployment frequency, lead time, MTTR, change failure rate</div>
+        </div>
+        <div class="timeline-item">
+          <div class="day">Day 18 &mdash; Governance Dashboard</div>
+          <div class="desc">Audit trail visualization, compliance reports, team analytics</div>
+        </div>
+        <div class="timeline-item">
+          <div class="day">Days 19&ndash;20 &mdash; Polish &amp; Demo</div>
+          <div class="desc">End-to-end demo, documentation, leadership presentation</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========== FILE STRUCTURE ========== -->
+<div class="section">
+  <div class="section-title">Project Structure</div>
+  <div class="card" style="font-family:monospace; font-size:0.82rem; line-height:1.7;">
+    <pre style="margin:0;">platform-agent/
+├── ford_platform_agent/
+│   ├── agent.py              # ADK agent: system instruction + 17 tools + callbacks
+│   ├── <strong>mcp_server.py</strong>         # MCP server: all tools for any MCP client
+│   ├── config.py             # Pydantic Settings: GitHub, ArgoCD, Tekton, guardrails
+│   ├── callbacks.py          # Guardrail engine: rate limiter, audit, HITL
+│   ├── __main__.py           # CLI: run / serve / mcp / providers
+│   ├── knowledge/            # Knowledge as Code (loaded at startup)
+│   │   ├── practices/        # naming-conventions.yaml, deployment-standards.yaml
+│   │   ├── guardrails/       # environment-rules.yaml, approval-gates.yaml
+│   │   └── runbooks/         # incident-response.md
+│   ├── providers/
+│   │   ├── base.py           # Protocol definitions: CIProvider, SCMProvider, GitOpsProvider
+│   │   ├── github.py         # GitHub Actions CI + GitHub API SCM
+│   │   ├── tekton.py         # Tekton Pipelines via K8s API
+│   │   ├── argocd.py         # ArgoCD GitOps management
+│   │   └── registry.py       # Auto-routing provider registry
+│   └── tools/
+│       ├── cicd.py           # 4 tools: list, status, trigger, cancel
+│       ├── scm.py            # 4 tools: list repos, repo info, PRs, create PR
+│       ├── gitops.py         # 5 tools: list, status, sync, rollback, history
+│       └── infra.py          # 4 tools: envs, plan, create PR, merge
+├── tests/                    # 63 tests across 4 test files
+├── .vscode/mcp.json          # VS Code Copilot MCP config
+├── mcp-config.json           # Claude Code MCP config
+├── Dockerfile                # Production Cloud Run container
+├── .github/workflows/ci.yml  # Lint + test + container build
+└── pyproject.toml            # Dependencies: ADK, MCP, httpx, pydantic</pre>
+  </div>
+</div>
+
+<!-- ========== RESEARCH SOURCES ========== -->
+<div class="section">
+  <div class="section-title">Grounded in 2026 Research</div>
+  <div class="card" style="font-size:0.85rem; color:var(--muted);">
+    <div class="grid-2" style="gap:0.5rem;">
+      <div>
+        <strong>Frameworks &amp; Standards</strong>
+        <ul style="padding-left:1.2rem; margin-top:0.3rem;">
+          <li>Google ADK v2.6.2 (21.6k stars, Apache-2.0)</li>
+          <li>MCP Spec 2026-07-28 (10,000+ servers)</li>
+          <li>MCP Python SDK v2.2.0 (MCPServer API)</li>
+          <li>OWASP LLM Top 10 2025 (LLM06)</li>
+        </ul>
+      </div>
+      <div>
+        <strong>Industry Validation</strong>
+        <ul style="padding-left:1.2rem; margin-top:0.3rem;">
+          <li>ThoughtWorks Radar Vol 34 (Apr 2026)</li>
+          <li>Block: 75% task-time reduction with MCP</li>
+          <li>Ford-Google 6-year deal ("Team Upshift")</li>
+          <li>platformengineering.org: ADPs emerging</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ========== FOOTER ========== -->
+<div class="footer">
+  Ford Agentic Development Platform &middot; POC Phase 3 (Days 10&ndash;12) &middot; September 2026<br>
+  Built with Google ADK + MCP &middot; terzo241-platform/platform-agent
+</div>
+
+</body>
+</html>
