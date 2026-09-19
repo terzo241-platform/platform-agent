@@ -50,6 +50,11 @@ def parse_args() -> argparse.Namespace:
     mcp_parser.add_argument("--host", default="0.0.0.0", help="HTTP host (default: 0.0.0.0)")
     mcp_parser.add_argument("--port", type=int, default=8080, help="HTTP port (default: 8080)")
 
+    chat_parser = sub.add_parser("chat", help="Start production API server (SSE streaming)")
+    chat_parser.add_argument("--host", default="0.0.0.0", help="Bind address (default: 0.0.0.0)")
+    chat_parser.add_argument("--port", type=int, default=8080, help="Port (default: 8080)")
+    chat_parser.add_argument("--dev", action="store_true", help="Dev mode (no auth, auto-reload)")
+
     return parser.parse_args()
 
 
@@ -132,13 +137,19 @@ def main() -> None:
         from ford_platform_agent.mcp_server import run_mcp
 
         run_mcp(transport=args.transport, host=args.host, port=args.port)
+    elif args.command == "chat":
+        from ford_platform_agent.chat import start_server
+
+        start_server(host=args.host, port=args.port, dev=args.dev)
     else:
         print("Ford Platform Agent v0.1.0")
         print()
         print("Usage:")
         print("  ford-agent run 'list my repos'    — single query")
-        print("  ford-agent serve                   — start web server")
+        print("  ford-agent chat                    — production API server (SSE streaming)")
+        print("  ford-agent chat --dev              — dev mode (no auth, auto-reload)")
         print("  ford-agent mcp                     — MCP server (Claude Code / VS Code)")
+        print("  ford-agent serve                   — ADK native web server")
         print("  ford-agent providers               — show configured providers")
         print()
         print("Interactive (ADK native):")

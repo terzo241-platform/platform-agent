@@ -58,6 +58,18 @@ class AuditConfig(BaseSettings):
     project: str = Field(default="", alias="GOOGLE_CLOUD_PROJECT")
 
 
+class ChatConfig(BaseSettings):
+    model_config = {"env_prefix": "FORD_CHAT_", "env_file": ".env", "extra": "ignore"}
+
+    host: str = "0.0.0.0"
+    port: int = 8080
+    cors_origins: str = "*"
+    api_keys: str = ""
+    session_ttl_hours: int = 24
+    max_sessions_per_user: int = 10
+    rate_limit_per_minute: int = 30
+
+
 def load_all() -> dict:
     return {
         "agent": AgentConfig(),
@@ -66,4 +78,5 @@ def load_all() -> dict:
         "tekton": TektonConfig(),
         "guardrails": GuardrailConfig(),
         "audit": AuditConfig(),
+        "chat": ChatConfig(),
     }
