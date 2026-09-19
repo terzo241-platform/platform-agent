@@ -1,0 +1,28 @@
+description: Approval gate configuration for destructive operations.
+
+gates:
+  infrastructure_change:
+    description: "Any Terraform apply to production"
+    require: [team-lead-approval, ci-green]
+    environments: [prod]
+
+  service_deployment:
+    description: "Deploy a new version to production"
+    require: [ci-green, staging-verified]
+    environments: [prod]
+
+  argocd_sync:
+    description: "Sync ArgoCD application"
+    require: [human-confirmation]
+    environments: [prod]
+    block_prune: true
+
+  rollback:
+    description: "Rollback to a previous version"
+    require: [human-confirmation]
+    environments: [prod, staging]
+
+rate_limits:
+  max_deploys_per_hour: 5
+  max_rollbacks_per_hour: 3
+  cooldown_after_failure_minutes: 10

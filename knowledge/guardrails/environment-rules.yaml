@@ -1,0 +1,25 @@
+description: Machine-readable environment guardrail rules.
+
+rules:
+  - name: prod-requires-approval
+    environments: [prod, production, prd]
+    actions: [deploy, sync, rollback, delete]
+    require_approval: true
+    reason: "Production changes must be explicitly approved to prevent outages."
+
+  - name: no-prune-ever
+    environments: [prod, production, prd]
+    actions: [sync]
+    block_if:
+      prune: true
+    reason: "ArgoCD prune on production can delete critical resources. Never auto-prune."
+
+  - name: staging-warn-shared
+    environments: [staging, stg, uat]
+    actions: [deploy, sync]
+    warn: "Staging is a shared environment. Your changes affect other teams' testing."
+
+  - name: dev-unrestricted
+    environments: [dev, development, npd]
+    actions: [all]
+    require_approval: false

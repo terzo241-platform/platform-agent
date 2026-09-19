@@ -1,0 +1,47 @@
+description: Ford naming conventions for services, repositories, and cloud resources.
+
+repositories:
+  pattern: "{team}-{service-name}"
+  examples:
+    - marketing-web-portal
+    - fleet-telemetry-api
+    - platform-terraform
+  rules:
+    - lowercase with hyphens only
+    - team prefix is mandatory
+    - no abbreviations unless universally understood (api, db, ui)
+
+cloud_run_services:
+  pattern: "{service-name}-{environment}"
+  examples:
+    - web-portal-dev
+    - telemetry-api-staging
+    - payment-service-prod
+
+gcs_buckets:
+  pattern: "{project-id}-{purpose}-{environment}"
+  examples:
+    - ford-mktg-assets-dev
+    - ford-fleet-telemetry-prod
+
+terraform_workspaces:
+  pattern: "{environment}-{team}-{component}"
+  examples:
+    - dev-marketing-appinfra
+    - prd-fleet-foundation
+
+branches:
+  feature: "feature/{ticket-id}-{short-description}"
+  bugfix: "bugfix/{ticket-id}-{short-description}"
+  release: "release/v{major}.{minor}.{patch}"
+
+labels:
+  required:
+    - team
+    - cost-center
+    - environment
+    - managed-by
+  managed_by_values:
+    - terraform
+    - manual
+    - platform-agent

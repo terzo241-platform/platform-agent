@@ -1,0 +1,38 @@
+description: Ford deployment standards and promotion rules.
+
+environments:
+  dev:
+    auto_deploy: true
+    approval_required: false
+    max_instances: 3
+    ingress: ALL
+  staging:
+    auto_deploy: true
+    approval_required: false
+    max_instances: 5
+    ingress: INTERNAL_ONLY
+  prod:
+    auto_deploy: false
+    approval_required: true
+    min_instances: 2
+    max_instances: 20
+    ingress: INTERNAL_LOAD_BALANCER
+
+promotion_path:
+  order: [dev, staging, prod]
+  rules:
+    - "Cannot skip environments (dev must pass before staging)"
+    - "Production requires passing CI on main branch"
+    - "Production deploys only during business hours (Mon-Fri 9AM-4PM EST)"
+    - "No production deploys during freeze windows"
+
+rollback:
+  auto_rollback_on_failure: true
+  max_rollback_revisions: 5
+  rollback_notification: "team-slack-channel"
+
+freeze_windows:
+  - name: "Sprint End"
+    schedule: "Last Friday of each month"
+  - name: "Holiday Freeze"
+    schedule: "Dec 20 - Jan 5"
