@@ -31,7 +31,7 @@ class TestTerraformConfigGeneration:
         )
         assert "min_instances = 0" in config
         assert "max_instances = 3" in config
-        assert 'allow_unauthenticated = true' in config
+        assert "allow_unauthenticated = true" in config
         assert "INGRESS_TRAFFIC_ALL" in config
 
     def test_uses_staging_defaults(self):
@@ -43,7 +43,7 @@ class TestTerraformConfigGeneration:
         )
         assert "min_instances = 1" in config
         assert "max_instances = 5" in config
-        assert 'allow_unauthenticated = false' in config
+        assert "allow_unauthenticated = false" in config
         assert "INGRESS_TRAFFIC_INTERNAL_ONLY" in config
 
     def test_uses_prod_defaults(self):
@@ -55,7 +55,7 @@ class TestTerraformConfigGeneration:
         )
         assert "min_instances = 2" in config
         assert "max_instances = 20" in config
-        assert 'allow_unauthenticated = false' in config
+        assert "allow_unauthenticated = false" in config
         assert "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER" in config
 
     def test_custom_cpu_overrides_default(self):

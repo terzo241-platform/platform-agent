@@ -7,15 +7,17 @@ Provides developer self-service for CI/CD, source control, and GitOps through na
 ## Architecture
 
 ```
-Developer → Claude Code / Gemini CLI / ford-cli / Slack
+Developer → Claude Code / VS Code / Gemini CLI / ford-cli / Slack
+                         │
+                    MCP Server (stdio / HTTP)
                          │
               Google ADK Agent (Gemini Flash / Claude Sonnet via Vertex AI)
                          │
-         ┌───────────────┼───────────────┐
-         │               │               │
-    CI/CD Tools     SCM Tools     GitOps Tools
-         │               │               │
-    ┌────┴────┐     GitHub API    ArgoCD API
+         ┌───────────┬───┴──────┬──────────────┐
+         │           │          │              │
+    CI/CD Tools  SCM Tools  GitOps Tools  Infra Tools
+         │           │          │              │
+    ┌────┴────┐  GitHub API  ArgoCD API  Terraform GitOps
     │         │
   GitHub   Tekton
   Actions  Pipelines
@@ -29,8 +31,12 @@ cp .env.example .env
 # Edit .env with your GitHub token + org
 
 # CLI
-python -m ford_platform_agent providers    # check config
-python -m ford_platform_agent run "list my repos"
+ford-agent providers                      # check config
+ford-agent run "list my repos"            # single query
+
+# MCP Server (for Claude Code / VS Code Copilot / any MCP client)
+ford-agent mcp                            # stdio transport
+ford-agent mcp --transport streamable-http --port 8080  # HTTP
 
 # ADK Web UI
 adk web ford_platform_agent
@@ -38,6 +44,26 @@ adk web ford_platform_agent
 # ADK API Server (for Cloud Run deployment)
 adk api_server ford_platform_agent
 ```
+
+## MCP Integration
+
+The agent exposes all 17 tools as an [MCP server](https://modelcontextprotocol.io/) (spec 2026-07-28), compatible with any MCP client.
+
+**Claude Code:**
+```bash
+claude mcp add ford-platform-agent -- ford-agent mcp
+```
+
+**VS Code Copilot:** Copy `.vscode/mcp.json` to your workspace, or add to global settings.
+
+**Tool Annotations** (MCP risk vocabulary):
+| Category | Tools | readOnlyHint | destructiveHint |
+|----------|-------|-------------|----------------|
+| Read | 10 tools (list, get, status) | true | false |
+| Write-safe | 3 tools (trigger, create PR) | false | false |
+| Destructive | 4 tools (cancel, sync, rollback, merge) | false | true |
+
+MCP clients auto-approve read-only tools and show confirmation dialogs for destructive ones.
 
 ## Provider Abstraction
 

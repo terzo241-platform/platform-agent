@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "ford-platform-agent": {
+      "command": "ford-agent",
+      "args": ["mcp"],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}",
+        "GITHUB_ORG": "${GITHUB_ORG}",
+        "ARGOCD_SERVER": "${ARGOCD_SERVER}",
+        "ARGOCD_TOKEN": "${ARGOCD_TOKEN}"
+      }
+    }
+  }
+}

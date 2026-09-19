@@ -40,9 +40,7 @@ class TestProviderRegistry:
         assert isinstance(ci, GitHubProvider)
 
     def test_override_repo_to_tekton(self):
-        registry = ProviderRegistry(
-            tekton_config=TektonConfig(api_url="http://k8s-api:443")
-        )
+        registry = ProviderRegistry(tekton_config=TektonConfig(api_url="http://k8s-api:443"))
         registry.set_repo_ci_provider("legacy-app", "tekton")
         ci = registry.get_ci("legacy-app")
         assert ci.name == "tekton"

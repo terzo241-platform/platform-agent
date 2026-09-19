@@ -86,6 +86,7 @@ async def before_agent_guardrail(ctx: Context) -> Content | None:
     """
     if _rate_limiter and not _rate_limiter.check():
         from google.genai.types import Content, Part
+
         logger.warning("rate_limit_exceeded", session=ctx.session.id if ctx.session else "unknown")
         return Content(
             role="model",
@@ -111,6 +112,7 @@ async def after_agent_audit(ctx: Context) -> Content | None:
 def load_guardrail_rules(knowledge_dir: str = "knowledge/guardrails") -> dict:
     """Load guardrail rules from knowledge-as-code YAML files."""
     import os
+
     rules: dict = {}
     if not os.path.isdir(knowledge_dir):
         return rules

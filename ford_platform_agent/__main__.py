@@ -40,6 +40,16 @@ def parse_args() -> argparse.Namespace:
     sub.add_parser("serve", help="Start the ADK web server")
     sub.add_parser("providers", help="List available providers")
 
+    mcp_parser = sub.add_parser("mcp", help="Start MCP server (Claude Code / VS Code / any client)")
+    mcp_parser.add_argument(
+        "--transport",
+        choices=["stdio", "streamable-http"],
+        default="stdio",
+        help="Transport protocol (default: stdio for IDE integration)",
+    )
+    mcp_parser.add_argument("--host", default="0.0.0.0", help="HTTP host (default: 0.0.0.0)")
+    mcp_parser.add_argument("--port", type=int, default=8080, help="HTTP port (default: 8080)")
+
     return parser.parse_args()
 
 
@@ -118,12 +128,17 @@ def main() -> None:
         print("Or:  adk api_server ford_platform_agent")
     elif args.command == "providers":
         list_providers()
+    elif args.command == "mcp":
+        from ford_platform_agent.mcp_server import run_mcp
+
+        run_mcp(transport=args.transport, host=args.host, port=args.port)
     else:
         print("Ford Platform Agent v0.1.0")
         print()
         print("Usage:")
         print("  ford-agent run 'list my repos'    — single query")
         print("  ford-agent serve                   — start web server")
+        print("  ford-agent mcp                     — MCP server (Claude Code / VS Code)")
         print("  ford-agent providers               — show configured providers")
         print()
         print("Interactive (ADK native):")

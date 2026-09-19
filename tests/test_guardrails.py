@@ -105,9 +105,7 @@ class TestGuardrailRulesLoading:
     def test_load_rules_from_yaml(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             with open(os.path.join(tmpdir, "env-rules.yaml"), "w") as f:
-                yaml.dump({
-                    "rules": [{"name": "prod-block", "environments": ["prod"]}]
-                }, f)
+                yaml.dump({"rules": [{"name": "prod-block", "environments": ["prod"]}]}, f)
             rules = load_guardrail_rules(tmpdir)
             assert "env-rules" in rules
             assert rules["env-rules"]["rules"][0]["name"] == "prod-block"

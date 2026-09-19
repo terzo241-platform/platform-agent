@@ -107,12 +107,14 @@ class ArgoCDProvider:
         history = data.get("status", {}).get("history", [])
         entries = []
         for h in history[-limit:]:
-            entries.append({
-                "id": h.get("id"),
-                "revision": h.get("revision", "")[:12],
-                "deployed_at": h.get("deployedAt", ""),
-                "source": h.get("source", {}).get("path", ""),
-            })
+            entries.append(
+                {
+                    "id": h.get("id"),
+                    "revision": h.get("revision", "")[:12],
+                    "deployed_at": h.get("deployedAt", ""),
+                    "source": h.get("source", {}).get("path", ""),
+                }
+            )
         return entries
 
     def _to_application(self, data: dict) -> Application:

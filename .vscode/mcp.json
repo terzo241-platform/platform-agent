@@ -1,0 +1,15 @@
+{
+  "servers": {
+    "ford-platform-agent": {
+      "type": "stdio",
+      "command": "ford-agent",
+      "args": ["mcp"],
+      "env": {
+        "GITHUB_TOKEN": "${env:GITHUB_TOKEN}",
+        "GITHUB_ORG": "${env:GITHUB_ORG}",
+        "ARGOCD_SERVER": "${env:ARGOCD_SERVER}",
+        "ARGOCD_TOKEN": "${env:ARGOCD_TOKEN}"
+      }
+    }
+  }
+}

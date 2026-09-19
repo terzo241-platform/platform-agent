@@ -670,25 +670,30 @@ This is essentially free compared to commercial alternatives like Sleuth ($30K/y
 ```python
 # MCP Server: Metrics — the agent becomes your analytics interface
 
+
 @mcp_server.tool("dora_metrics")
 async def dora_metrics(team: str = None, period: str = "last_30d"):
     """Get DORA metrics for a team or the entire org"""
     # Queries BigQuery views, returns formatted scorecard
+
 
 @mcp_server.tool("deployment_frequency")
 async def deployment_frequency(team: str, period: str = "last_90d"):
     """Show deployment frequency trend for a team"""
     # Returns data + trend direction + comparison to org average
 
+
 @mcp_server.tool("cost_breakdown")
 async def cost_breakdown(service: str = None, team: str = None, period: str = "last_30d"):
     """Break down GCP costs by service, team, or SKU"""
     # Queries billing tables, highlights anomalies
 
+
 @mcp_server.tool("compare_teams")
 async def compare_teams(metric: str, teams: list = None):
     """Compare teams on a specific metric (anonymized if needed)"""
     # Shows relative performance without naming bottom performers
+
 
 @mcp_server.tool("improvement_suggestions")
 async def improvement_suggestions(team: str):
@@ -1906,6 +1911,7 @@ from mcp.server import MCPServer
 
 mcp = MCPServer("ford-atlantis-server")
 
+
 @mcp.tool()
 async def atlantis_plan(repository: str, workspace: str, directory: str) -> str:
     """Trigger an Atlantis plan for a workspace.
@@ -1916,12 +1922,11 @@ async def atlantis_plan(repository: str, workspace: str, directory: str) -> str:
         directory: Terraform directory (e.g., env/prd/appinfra)
     """
     # Call Atlantis API
-    response = await atlantis_api.post("/api/plan", json={
-        "Repository": repository,
-        "Workspace": workspace,
-        "Dir": directory
-    })
+    response = await atlantis_api.post(
+        "/api/plan", json={"Repository": repository, "Workspace": workspace, "Dir": directory}
+    )
     return f"Plan triggered for {workspace}. Status: {response.status}"
+
 
 @mcp.tool()
 async def atlantis_unlock(repository: str, workspace: str) -> str:
@@ -1929,11 +1934,13 @@ async def atlantis_unlock(repository: str, workspace: str) -> str:
     # Call Atlantis delete-lock API
     ...
 
+
 @mcp.tool()
 async def check_drift(workspace: str) -> str:
     """Check for infrastructure drift in a workspace."""
     # Trigger plan, parse output for changes
     ...
+
 
 # Run the server
 if __name__ == "__main__":
@@ -2425,56 +2432,56 @@ Cloud Run (webhook receiver)
 ### Webhook Receiver (Cloud Run) — Python Pseudocode
 
 ```python
-@app.route('/webhook', methods=['POST'])
+@app.route("/webhook", methods=["POST"])
 def receive_webhook():
     # 1. Verify signature
-    signature = request.headers.get('X-Hub-Signature-256')
+    signature = request.headers.get("X-Hub-Signature-256")
     if not verify_signature(request.data, signature, WEBHOOK_SECRET):
-        return 'Unauthorized', 401
+        return "Unauthorized", 401
 
     # 2. Parse event
-    event_type = request.headers.get('X-GitHub-Event')
-    delivery_id = request.headers.get('X-GitHub-Delivery')
+    event_type = request.headers.get("X-GitHub-Event")
+    delivery_id = request.headers.get("X-GitHub-Delivery")
     payload = request.json
 
     # 3. Write to BigQuery events_raw
     row = {
-        'event_id': delivery_id,
-        'source': 'github',
-        'event_type': event_type,
-        'metadata': json.dumps(payload),
-        'time_created': datetime.utcnow().isoformat(),
-        'signature': signature
+        "event_id": delivery_id,
+        "source": "github",
+        "event_type": event_type,
+        "metadata": json.dumps(payload),
+        "time_created": datetime.utcnow().isoformat(),
+        "signature": signature,
     }
-    bq_client.insert_rows_json('dora.events_raw', [row])
+    bq_client.insert_rows_json("dora.events_raw", [row])
 
     # 4. Publish to Pub/Sub for async processing
     publisher.publish(topic, json.dumps(row).encode())
-    return 'OK', 200
+    return "OK", 200
 ```
 
 ### ETL Worker Logic — Per Event Type
 
 ```python
 # deployment_status → dora.deployments
-if event_type == 'deployment_status':
-    status = payload['deployment_status']
-    deployment = payload['deployment']
-    if status['state'] == 'success' and deployment.get('environment') == 'production':
+if event_type == "deployment_status":
+    status = payload["deployment_status"]
+    deployment = payload["deployment"]
+    if status["state"] == "success" and deployment.get("environment") == "production":
         # Get commits between this deploy and previous
-        commits = github_api.compare(repo, previous_sha, deployment['sha'])
+        commits = github_api.compare(repo, previous_sha, deployment["sha"])
         insert_deployment(deploy_id, repo, sha, commits, timestamp)
 
 # push → dora.changes
-if event_type == 'push':
-    for commit in payload.get('commits', []):
-        insert_change(commit['id'], repo, commit['timestamp'], commit['author'])
+if event_type == "push":
+    for commit in payload.get("commits", []):
+        insert_change(commit["id"], repo, commit["timestamp"], commit["author"])
 
 # issues → dora.incidents
-if event_type == 'issues':
-    labels = [l['name'] for l in issue.get('labels', [])]
-    if 'incident' in labels or 'production-bug' in labels:
-        insert_incident(issue['number'], repo, created_at, closed_at, labels)
+if event_type == "issues":
+    labels = [l["name"] for l in issue.get("labels", [])]
+    if "incident" in labels or "production-bug" in labels:
+        insert_incident(issue["number"], repo, created_at, closed_at, labels)
 ```
 
 ---

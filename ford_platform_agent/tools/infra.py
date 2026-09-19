@@ -275,12 +275,14 @@ async def get_plan_output(pr_number: int) -> dict:
                 "to destroy",
             ]
         ):
-            plan_comments.append({
-                "id": comment["id"],
-                "author": comment.get("user", {}).get("login", ""),
-                "created_at": comment.get("created_at", ""),
-                "body": body[:3000],
-            })
+            plan_comments.append(
+                {
+                    "id": comment["id"],
+                    "author": comment.get("user", {}).get("login", ""),
+                    "created_at": comment.get("created_at", ""),
+                    "body": body[:3000],
+                }
+            )
 
     if not plan_comments:
         pr_data = await github.get_pull_request(TERRAFORM_REPO, pr_number)

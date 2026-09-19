@@ -33,10 +33,14 @@ class TektonProvider:
         self._config = config or TektonConfig()
         self._ns = self._config.namespace
         self._api_url = self._config.api_url.rstrip("/") if self._config.api_url else ""
-        self._client = httpx.AsyncClient(
-            base_url=self._api_url,
-            timeout=30.0,
-        ) if self._api_url else None
+        self._client = (
+            httpx.AsyncClient(
+                base_url=self._api_url,
+                timeout=30.0,
+            )
+            if self._api_url
+            else None
+        )
 
     @property
     def name(self) -> str:
@@ -93,11 +97,7 @@ class TektonProvider:
                 "pipelineRef": {"name": workflow},
                 "params": [
                     {"name": "git-revision", "value": ref},
-                    *(
-                        [{"name": k, "value": str(v)} for k, v in inputs.items()]
-                        if inputs
-                        else []
-                    ),
+                    *([{"name": k, "value": str(v)} for k, v in inputs.items()] if inputs else []),
                 ],
             },
         }
@@ -137,9 +137,7 @@ class TektonProvider:
         conditions = status.get("conditions", [{}])
         condition = conditions[0] if conditions else {}
 
-        run_status = _TEKTON_STATUS_MAP.get(
-            condition.get("status", "Unknown"), RunStatus.UNKNOWN
-        )
+        run_status = _TEKTON_STATUS_MAP.get(condition.get("status", "Unknown"), RunStatus.UNKNOWN)
         if not status:
             run_status = RunStatus.PENDING
 
@@ -148,6 +146,7 @@ class TektonProvider:
         duration = None
         if start and end:
             from datetime import datetime
+
             s = datetime.fromisoformat(start.replace("Z", "+00:00"))
             e = datetime.fromisoformat(end.replace("Z", "+00:00"))
             duration = int((e - s).total_seconds())
@@ -161,8 +160,11 @@ class TektonProvider:
             duration_seconds=duration,
             trigger="tekton",
             branch=next(
-                (p["value"] for p in data.get("spec", {}).get("params", [])
-                 if p["name"] == "git-revision"),
+                (
+                    p["value"]
+                    for p in data.get("spec", {}).get("params", [])
+                    if p["name"] == "git-revision"
+                ),
                 "main",
             ),
             provider="tekton",

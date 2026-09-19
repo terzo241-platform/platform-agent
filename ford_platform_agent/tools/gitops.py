@@ -84,9 +84,7 @@ async def get_application_status(app_name: str) -> dict:
     }
 
 
-async def sync_application(
-    app_name: str, revision: str = "", prune: bool = False
-) -> dict:
+async def sync_application(app_name: str, revision: str = "", prune: bool = False) -> dict:
     """Trigger a sync (deployment) for a GitOps application.
 
     This is a WRITE operation. For production apps, human approval is required.

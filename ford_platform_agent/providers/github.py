@@ -133,9 +133,7 @@ class GitHubProvider:
         return f"Logs not available (HTTP {resp.status_code})"
 
     async def cancel_run(self, repo: str, run_id: str) -> bool:
-        resp = await self._client.post(
-            f"{self._repo_path(repo)}/actions/runs/{run_id}/cancel"
-        )
+        resp = await self._client.post(f"{self._repo_path(repo)}/actions/runs/{run_id}/cancel")
         return resp.status_code == 202
 
     # --- SCMProvider ---
