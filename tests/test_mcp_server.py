@@ -48,7 +48,7 @@ class TestToolRegistration:
         assert "approve_and_merge" in tool_names
 
     def test_total_tool_count(self, tool_names):
-        assert len(tool_names) == 17
+        assert len(tool_names) == 19
 
 
 class TestToolAnnotations:

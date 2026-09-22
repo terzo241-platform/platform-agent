@@ -28,7 +28,7 @@ from ford_platform_agent.config import (
 )
 from ford_platform_agent.knowledge import get_knowledge_instruction
 from ford_platform_agent.providers.registry import ProviderRegistry
-from ford_platform_agent.tools import cicd, gitops, infra, scm
+from ford_platform_agent.tools import cicd, gitops, infra, scaffold, scm
 
 SYSTEM_INSTRUCTION = """\
 You are Ford's Platform Engineering Agent — an AI assistant that helps developers \
@@ -87,6 +87,7 @@ def build_agent(
     scm.set_registry(registry)
     gitops.set_registry(registry)
     infra.set_registry(registry)
+    scaffold.set_registry(registry)
 
     init_callbacks(guardrail_config)
 
@@ -104,6 +105,7 @@ def build_agent(
         FunctionTool(gitops.get_deployment_history),
         FunctionTool(infra.list_environments),
         FunctionTool(infra.get_plan_output),
+        FunctionTool(scaffold.list_templates),
     ]
 
     write_tools = [
@@ -114,6 +116,7 @@ def build_agent(
         FunctionTool(gitops.rollback_application, require_confirmation=True),
         FunctionTool(infra.create_service_pr, require_confirmation=True),
         FunctionTool(infra.approve_and_merge, require_confirmation=True),
+        FunctionTool(scaffold.scaffold_project, require_confirmation=True),
     ]
 
     agent = Agent(

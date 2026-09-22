@@ -74,6 +74,11 @@ CAPABILITIES = {
         "Read Terraform plan output from PRs",
         "Approve and merge infrastructure PRs (separation of duties enforced)",
     ],
+    "project_scaffolding": [
+        "List available project templates (Python/FastAPI, Node/Next.js, Java/Spring Boot)",
+        "Create a new project from scratch — repo, code, CI, and infrastructure in one action",
+        "Golden path templates include Dockerfile, health checks, tests, and CI workflows",
+    ],
 }
 
 GUARDRAILS_INFO = {

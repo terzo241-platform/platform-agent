@@ -147,6 +147,57 @@ class GitHubProvider:
         data = await self._get(self._repo_path(repo))
         return self._to_repository(data)
 
+    async def create_repo(
+        self,
+        name: str,
+        description: str = "",
+        private: bool = False,
+        auto_init: bool = True,
+    ) -> Repository:
+        data = await self._post(
+            f"/orgs/{self._org}/repos",
+            {
+                "name": name,
+                "description": description,
+                "private": private,
+                "auto_init": auto_init,
+            },
+        )
+        logger.info("repo_created", repo=name, org=self._org)
+        return self._to_repository(data)
+
+    async def commit_files(
+        self,
+        repo: str,
+        branch: str,
+        message: str,
+        files: dict[str, str],
+    ) -> str:
+        ref_data = await self._get(f"{self._repo_path(repo)}/git/ref/heads/{branch}")
+        base_sha = ref_data["object"]["sha"]
+
+        tree_entries = [
+            {"path": path, "mode": "100644", "type": "blob", "content": content}
+            for path, content in files.items()
+        ]
+        tree_resp = await self._post(
+            f"{self._repo_path(repo)}/git/trees",
+            {"base_tree": base_sha, "tree": tree_entries},
+        )
+
+        commit_resp = await self._post(
+            f"{self._repo_path(repo)}/git/commits",
+            {"message": message, "tree": tree_resp["sha"], "parents": [base_sha]},
+        )
+        commit_sha = commit_resp["sha"]
+
+        await self._client.patch(
+            f"{self._repo_path(repo)}/git/refs/heads/{branch}",
+            json={"sha": commit_sha},
+        )
+        logger.info("files_committed", repo=repo, branch=branch, file_count=len(files))
+        return commit_sha
+
     async def create_branch(self, repo: str, branch: str, from_ref: str = "main") -> str:
         ref_data = await self._get(f"{self._repo_path(repo)}/git/ref/heads/{from_ref}")
         sha = ref_data["object"]["sha"]

@@ -19,7 +19,7 @@ from mcp.types import ToolAnnotations
 
 from ford_platform_agent.config import ArgoCDConfig, GitHubConfig, TektonConfig
 from ford_platform_agent.providers.registry import ProviderRegistry
-from ford_platform_agent.tools import cicd, gitops, infra, scm
+from ford_platform_agent.tools import cicd, gitops, infra, scaffold, scm
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -36,6 +36,7 @@ async def _lifespan(server: MCPServer) -> AsyncIterator[dict]:
     scm.set_registry(registry)
     gitops.set_registry(registry)
     infra.set_registry(registry)
+    scaffold.set_registry(registry)
     try:
         yield {"registry": registry}
     finally:
@@ -385,6 +386,60 @@ async def approve_and_merge(pr_number: int, approver: str = "") -> dict:
         approver: GitHub username of approver (must differ from PR author).
     """
     return await infra.approve_and_merge(pr_number, approver)
+
+
+# ---------------------------------------------------------------------------
+# Scaffold Tools (Project Creation)
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="list_templates",
+    description=(
+        "List available project templates (golden paths). "
+        "Shows supported languages, frameworks, and what gets generated."
+    ),
+    annotations=READ_ONLY,
+)
+async def list_templates() -> dict:
+    """List project templates.
+
+    Returns available archetypes (Python/FastAPI, Node/Next.js, Java/Spring Boot).
+    """
+    return await scaffold.list_templates()
+
+
+@mcp.tool(
+    name="scaffold_project",
+    description=(
+        "Create a new project from scratch — repo, code, CI, and infrastructure in one action. "
+        "WRITE operation — creates a GitHub repository and opens a Terraform PR."
+    ),
+    annotations=WRITE_SAFE,
+)
+async def scaffold_project(
+    service_name: str,
+    template: str,
+    team: str,
+    cost_center: str,
+    description: str = "",
+    environment: str = "dev",
+    private: bool = False,
+) -> dict:
+    """Scaffold a complete project.
+
+    Args:
+        service_name: Service name (lowercase, hyphens, 3-63 chars).
+        template: 'python-fastapi', 'node-nextjs', or 'java-spring'.
+        team: Owning team (e.g., 'marketing-web').
+        cost_center: Finance cost center (e.g., 'MKT-40210').
+        description: Optional repo description.
+        environment: Initial environment — 'dev', 'staging', or 'prod'.
+        private: Whether repo is private (default: public).
+    """
+    return await scaffold.scaffold_project(
+        service_name, template, team, cost_center, description, environment, private
+    )
 
 
 # ---------------------------------------------------------------------------
