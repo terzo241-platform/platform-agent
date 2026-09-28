@@ -58,6 +58,18 @@ class AuditConfig(BaseSettings):
     project: str = Field(default="", alias="GOOGLE_CLOUD_PROJECT")
 
 
+class SlackConfig(BaseSettings):
+    model_config = {"env_prefix": "SLACK_", "env_file": ".env", "extra": "ignore"}
+
+    bot_token: str = ""
+    signing_secret: str = ""
+    app_token: str = ""
+    chat_api_url: str = "http://localhost:8080"
+    chat_api_key: str = ""
+    update_interval_sec: float = 1.5
+    request_timeout_sec: float = 120.0
+
+
 class ChatConfig(BaseSettings):
     model_config = {"env_prefix": "FORD_CHAT_", "env_file": ".env", "extra": "ignore"}
 

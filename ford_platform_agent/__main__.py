@@ -55,6 +55,14 @@ def parse_args() -> argparse.Namespace:
     chat_parser.add_argument("--port", type=int, default=8080, help="Port (default: 8080)")
     chat_parser.add_argument("--dev", action="store_true", help="Dev mode (no auth, auto-reload)")
 
+    slack_parser = sub.add_parser("slack", help="Start Slack bot (adapter over Chat API)")
+    slack_parser.add_argument(
+        "--mode",
+        choices=["socket", "http"],
+        default="socket",
+        help="Transport mode (default: socket for dev, http for production)",
+    )
+
     return parser.parse_args()
 
 
@@ -141,6 +149,10 @@ def main() -> None:
         from ford_platform_agent.chat import start_server
 
         start_server(host=args.host, port=args.port, dev=args.dev)
+    elif args.command == "slack":
+        from ford_platform_agent.slack_bot import start_slack_bot
+
+        start_slack_bot(mode=args.mode)
     else:
         print("Ford Platform Agent v0.1.0")
         print()
@@ -150,6 +162,8 @@ def main() -> None:
         print("  ford-agent chat --dev              — dev mode (no auth, auto-reload)")
         print("  ford-agent mcp                     — MCP server (Claude Code / VS Code)")
         print("  ford-agent serve                   — ADK native web server")
+        print("  ford-agent slack                    — Slack bot (adapter over Chat API)")
+        print("  ford-agent slack --mode http        — Slack bot (HTTP mode for production)")
         print("  ford-agent providers               — show configured providers")
         print()
         print("Interactive (ADK native):")

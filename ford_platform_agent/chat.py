@@ -74,6 +74,13 @@ CAPABILITIES = {
         "Read Terraform plan output from PRs",
         "Approve and merge infrastructure PRs (separation of duties enforced)",
     ],
+    "dora_metrics": [
+        "Get DORA metrics for any repository (deployment frequency, lead time, CFR, MTTR)",
+        "Aggregate team-level metrics across multiple repositories",
+        "Compare repositories side-by-side with per-metric rankings",
+        "Track metric trends over time (improving vs degrading)",
+        "Get prioritized improvement recommendations based on weakest areas",
+    ],
     "project_scaffolding": [
         "List available project templates (Python/FastAPI, Node/Next.js, Java/Spring Boot)",
         "Create a new project from scratch — repo, code, CI, and infrastructure in one action",

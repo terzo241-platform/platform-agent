@@ -28,7 +28,7 @@ from ford_platform_agent.config import (
 )
 from ford_platform_agent.knowledge import get_knowledge_instruction
 from ford_platform_agent.providers.registry import ProviderRegistry
-from ford_platform_agent.tools import cicd, gitops, infra, scaffold, scm
+from ford_platform_agent.tools import cicd, gitops, infra, metrics, scaffold, scm
 
 SYSTEM_INSTRUCTION = """\
 You are Ford's Platform Engineering Agent — an AI assistant that helps developers \
@@ -39,6 +39,7 @@ interact with CI/CD pipelines, source control, GitOps deployments, and infrastru
 - Trigger CI/CD pipelines (GitHub Actions or Tekton)
 - Manage GitOps deployments (ArgoCD: sync, rollback, status)
 - Provision infrastructure: generate Terraform configs, create PRs, read plans, merge
+- Measure engineering effectiveness: DORA metrics, team rollups, trends, recommendations
 - Route to the correct provider automatically based on repo configuration
 
 ## Operating Principles
@@ -87,6 +88,7 @@ def build_agent(
     scm.set_registry(registry)
     gitops.set_registry(registry)
     infra.set_registry(registry)
+    metrics.set_registry(registry)
     scaffold.set_registry(registry)
 
     init_callbacks(guardrail_config)
@@ -106,6 +108,11 @@ def build_agent(
         FunctionTool(infra.list_environments),
         FunctionTool(infra.get_plan_output),
         FunctionTool(scaffold.list_templates),
+        FunctionTool(metrics.get_dora_metrics),
+        FunctionTool(metrics.get_team_metrics),
+        FunctionTool(metrics.compare_repos),
+        FunctionTool(metrics.get_metric_trends),
+        FunctionTool(metrics.get_dora_recommendations),
     ]
 
     write_tools = [

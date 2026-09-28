@@ -16,7 +16,7 @@ class TestMCPServerMetadata:
 
 
 class TestToolRegistration:
-    """All 17 ADK tools must be exposed as MCP tools."""
+    """All 24 ADK tools must be exposed as MCP tools."""
 
     @pytest.fixture
     def tool_names(self):
@@ -47,8 +47,15 @@ class TestToolRegistration:
         assert "create_service_pr" in tool_names
         assert "approve_and_merge" in tool_names
 
+    def test_metrics_tools_registered(self, tool_names):
+        assert "get_dora_metrics" in tool_names
+        assert "get_team_metrics" in tool_names
+        assert "compare_repos" in tool_names
+        assert "get_metric_trends" in tool_names
+        assert "get_dora_recommendations" in tool_names
+
     def test_total_tool_count(self, tool_names):
-        assert len(tool_names) == 19
+        assert len(tool_names) == 24
 
 
 class TestToolAnnotations:

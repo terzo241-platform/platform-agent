@@ -19,7 +19,7 @@ from mcp.types import ToolAnnotations
 
 from ford_platform_agent.config import ArgoCDConfig, GitHubConfig, TektonConfig
 from ford_platform_agent.providers.registry import ProviderRegistry
-from ford_platform_agent.tools import cicd, gitops, infra, scaffold, scm
+from ford_platform_agent.tools import cicd, gitops, infra, metrics, scaffold, scm
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -36,6 +36,7 @@ async def _lifespan(server: MCPServer) -> AsyncIterator[dict]:
     scm.set_registry(registry)
     gitops.set_registry(registry)
     infra.set_registry(registry)
+    metrics.set_registry(registry)
     scaffold.set_registry(registry)
     try:
         yield {"registry": registry}
@@ -440,6 +441,102 @@ async def scaffold_project(
     return await scaffold.scaffold_project(
         service_name, template, team, cost_center, description, environment, private
     )
+
+
+# ---------------------------------------------------------------------------
+# DORA Metrics Tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool(
+    name="get_dora_metrics",
+    description=(
+        "Get DORA metrics for a repository — deployment frequency, lead time, "
+        "change failure rate, MTTR, and AI rework rate. Each metric graded "
+        "against industry benchmarks (Elite/High/Medium/Low)."
+    ),
+    annotations=READ_ONLY,
+)
+async def get_dora_metrics(repo: str, days: int = 30) -> dict:
+    """Get DORA metrics for a single repository.
+
+    Args:
+        repo: Repository name (e.g., 'sample-nextjs-app').
+        days: Analysis period in days (default: 30).
+    """
+    return await metrics.get_dora_metrics(repo, days)
+
+
+@mcp.tool(
+    name="get_team_metrics",
+    description=(
+        "Get aggregated DORA metrics for a team across multiple repositories. "
+        "Calculates per-repo and team-level rollup scores."
+    ),
+    annotations=READ_ONLY,
+)
+async def get_team_metrics(repos: str, days: int = 30) -> dict:
+    """Get team-level DORA metrics.
+
+    Args:
+        repos: Comma-separated repository names (e.g., 'repo-a,repo-b,repo-c').
+        days: Analysis period in days (default: 30).
+    """
+    return await metrics.get_team_metrics(repos, days)
+
+
+@mcp.tool(
+    name="compare_repos",
+    description=(
+        "Compare DORA metrics side-by-side across repositories, "
+        "highlighting strongest and weakest performers."
+    ),
+    annotations=READ_ONLY,
+)
+async def compare_repos(repos: str, days: int = 30) -> dict:
+    """Compare DORA metrics across repos.
+
+    Args:
+        repos: Comma-separated repository names (at least 2).
+        days: Analysis period in days (default: 30).
+    """
+    return await metrics.compare_repos(repos, days)
+
+
+@mcp.tool(
+    name="get_metric_trends",
+    description=(
+        "Get DORA metric trends over multiple time periods. "
+        "Shows improvement or degradation patterns."
+    ),
+    annotations=READ_ONLY,
+)
+async def get_metric_trends(repo: str, periods: int = 3, period_days: int = 30) -> dict:
+    """Get DORA metric trends.
+
+    Args:
+        repo: Repository name.
+        periods: Number of periods to compare (default: 3).
+        period_days: Length of each period in days (default: 30).
+    """
+    return await metrics.get_metric_trends(repo, periods, period_days)
+
+
+@mcp.tool(
+    name="get_dora_recommendations",
+    description=(
+        "Get improvement recommendations based on weakest DORA metrics. "
+        "Actionable suggestions prioritized by impact."
+    ),
+    annotations=READ_ONLY,
+)
+async def get_dora_recommendations(repo: str) -> dict:
+    """Get DORA improvement recommendations.
+
+    Args:
+        repo: Repository name to analyze.
+    """
+    return await metrics.get_dora_recommendations(repo)
 
 
 # ---------------------------------------------------------------------------
