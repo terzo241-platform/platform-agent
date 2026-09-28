@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ford Platform Modernization — Vision + Working POC</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --card: #334155;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent2: #10b981;
+    --accent3: #f59e0b;
+    --accent4: #ef4444;
+    --accent5: #8b5cf6;
+    --border: #475569;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  .slide {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+    padding: 60px 80px;
+    position: relative;
+  }
+  .slide.active { display: flex; }
+
+  .slide-number {
+    position: fixed;
+    bottom: 20px;
+    right: 30px;
+    font-size: 14px;
+    color: var(--muted);
+    z-index: 100;
+  }
+
+  .nav-hint {
+    position: fixed;
+    bottom: 20px;
+    left: 30px;
+    font-size: 12px;
+    color: var(--border);
+    z-index: 100;
+  }
+
+  .progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    background: var(--accent);
+    transition: width 0.4s ease;
+    z-index: 100;
+  }
+
+  h1 { font-size: 52px; font-weight: 700; line-height: 1.15; margin-bottom: 16px; }
+  h2 { font-size: 40px; font-weight: 700; line-height: 1.2; margin-bottom: 24px; }
+  h3 { font-size: 28px; font-weight: 600; margin-bottom: 16px; }
+
+  .subtitle { font-size: 22px; color: var(--muted); margin-bottom: 8px; font-weight: 400; }
+  .tag { display: inline-block; background: var(--accent); color: white; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; margin: 4px 2px; }
+  .tag.green { background: var(--accent2); }
+  .tag.amber { background: var(--accent3); color: #0f172a; }
+  .tag.red { background: var(--accent4); }
+  .tag.purple { background: var(--accent5); }
+
+  .content { max-width: 1100px; width: 100%; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+  }
+  .card h3 { font-size: 20px; margin-bottom: 12px; }
+  .card ul { list-style: none; padding: 0; }
+  .card li { padding: 5px 0; font-size: 15px; color: var(--muted); line-height: 1.5; }
+  .card li::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 10px; vertical-align: middle; }
+
+  .card.blue li::before { background: var(--accent); }
+  .card.green li::before { background: var(--accent2); }
+  .card.amber li::before { background: var(--accent3); }
+  .card.purple li::before { background: var(--accent5); }
+  .card.red li::before { background: var(--accent4); }
+
+  .stat-row { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; margin: 24px 0; }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 28px;
+    text-align: center;
+    min-width: 130px;
+  }
+  .stat .number { font-size: 36px; font-weight: 700; color: var(--accent); }
+  .stat .label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .stat.green .number { color: var(--accent2); }
+  .stat.amber .number { color: var(--accent3); }
+  .stat.purple .number { color: var(--accent5); }
+
+  .arch-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre;
+    color: var(--muted);
+    overflow-x: auto;
+    text-align: center;
+  }
+  .arch-diagram .hl { color: var(--accent); font-weight: 700; }
+  .arch-diagram .hl2 { color: var(--accent2); font-weight: 700; }
+  .arch-diagram .hl3 { color: var(--accent3); font-weight: 700; }
+
+  .timeline {
+    display: flex;
+    gap: 0;
+    margin: 24px 0;
+    width: 100%;
+  }
+  .phase {
+    flex: 1;
+    padding: 20px;
+    border-radius: 12px;
+    position: relative;
+  }
+  .phase:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    right: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-top: 12px solid transparent;
+    border-bottom: 12px solid transparent;
+    z-index: 2;
+  }
+  .phase.p1 { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); }
+  .phase.p1::after { border-left: 12px solid rgba(59,130,246,0.3); }
+  .phase.p2 { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); margin-left: 16px; }
+  .phase.p2::after { border-left: 12px solid rgba(16,185,129,0.3); }
+  .phase.p3 { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); margin-left: 16px; }
+  .phase.p3::after { border-left: 12px solid rgba(245,158,11,0.3); }
+  .phase.p4 { background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3); margin-left: 16px; }
+  .phase h3 { font-size: 16px; margin-bottom: 8px; }
+  .phase ul { list-style: none; padding: 0; }
+  .phase li { font-size: 13px; color: var(--muted); padding: 2px 0; }
+
+  .quote {
+    font-size: 22px;
+    font-style: italic;
+    color: var(--muted);
+    border-left: 3px solid var(--accent);
+    padding-left: 20px;
+    margin: 20px 0;
+    line-height: 1.6;
+  }
+
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+
+  .center { text-align: center; }
+  .left { text-align: left; }
+  .mt { margin-top: 16px; }
+  .mb { margin-bottom: 16px; }
+  .small { font-size: 14px; color: var(--muted); }
+
+  .pillar-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .pillar-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .discovery-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .discovery-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+  }
+  .discovery-item h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .discovery-item p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .ask-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin: 12px 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+  }
+  .ask-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .ask-text h4 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .ask-text p { font-size: 14px; color: var(--muted); }
+
+  .dora-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 14px;
+    margin-top: 16px;
+  }
+  .dora-table th {
+    background: var(--surface);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .dora-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(71,85,105,0.3);
+    color: var(--muted);
+  }
+  .dora-table tr:last-child td { border-bottom: none; }
+  .grade { font-weight: 700; }
+  .grade.elite { color: var(--accent2); }
+  .grade.high { color: var(--accent); }
+  .grade.medium { color: var(--accent3); }
+  .grade.low { color: var(--accent4); }
+
+  @media (max-width: 900px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .timeline { flex-direction: column; }
+    .phase { margin-left: 0 !important; }
+    .phase::after { display: none; }
+    h1 { font-size: 36px; }
+    h2 { font-size: 28px; }
+    .slide { padding: 30px 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="progress" id="progress"></div>
+<div class="slide-number" id="slideNum"></div>
+<div class="nav-hint">Arrow keys or click to navigate</div>
+
+<!-- ===== SLIDE 1: TITLE ===== -->
+<div class="slide active" id="s1">
+  <div class="content center">
+    <p class="subtitle" style="font-size:16px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 24px;">Platform Architecture Proposal</p>
+    <h1 style="font-size: 48px;">Ford Platform Modernization</h1>
+    <p class="subtitle" style="font-size: 26px; margin-bottom: 32px;">Vision + Working POC</p>
+    <div style="width: 60px; height: 3px; background: var(--accent); margin: 0 auto 32px;"></div>
+    <p style="font-size: 18px; color: var(--text);">Vinoth Chinnadurai</p>
+    <p style="font-size: 15px; color: var(--muted);">Platform Architect</p>
+    <div class="badge-row" style="justify-content: center; margin-top: 24px;">
+      <span class="tag">CI/CD</span>
+      <span class="tag green">Infrastructure as Code</span>
+      <span class="tag purple">AI Agent Platform</span>
+      <span class="tag amber">Engineering Metrics</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 2: THE PROBLEM ===== -->
+<div class="slide" id="s2">
+  <div class="content">
+    <h2>The Problem We All Know</h2>
+    <p class="subtitle mb">What enterprise platform teams struggle with — universally</p>
+    <div class="grid-2">
+      <div class="card red">
+        <h3>Fragmented CI/CD</h3>
+        <ul>
+          <li>Every team builds their own pipeline from scratch</li>
+          <li>Security scanning is optional, inconsistent, or absent</li>
+          <li>No supply chain enforcement (SBOM, signing, provenance)</li>
+          <li>Onboarding a new team takes weeks, not minutes</li>
+        </ul>
+      </div>
+      <div class="card amber">
+        <h3>Manual Infrastructure</h3>
+        <ul>
+          <li>Infrastructure provisioning requires tickets + waiting</li>
+          <li>No golden paths — every team reinvents the wheel</li>
+          <li>Drift between environments (dev works, prod doesn't)</li>
+          <li>No guardrails — one misconfiguration = incident</li>
+        </ul>
+      </div>
+      <div class="card purple">
+        <h3>Invisible Engineering</h3>
+        <ul>
+          <li>No DORA metrics — can't measure what you can't see</li>
+          <li>No data for leadership conversations about velocity</li>
+          <li>AI code generation inflating throughput without quality tracking</li>
+          <li>ROI of platform investments is faith-based, not data-driven</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>Tribal Knowledge</h3>
+        <ul>
+          <li>Platform practices live in people's heads, not in code</li>
+          <li>One person leaves = knowledge disappears</li>
+          <li>Teams ask the same questions in Slack every week</li>
+          <li>No self-service — everything requires a platform engineer</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 3: THE VISION ===== -->
+<div class="slide" id="s3">
+  <div class="content center">
+    <h2>The Vision: Three Pillars</h2>
+    <p class="subtitle mb">One platform, three capabilities, zero context switches</p>
+    <div class="arch-diagram"><span class="hl3">Developer</span> says: <span class="hl">"I need a new Python service with CI and Cloud Run"</span>
+
+                    <span class="hl3">+---------------------+</span>
+                    <span class="hl3">|    AI Agent Layer    |</span>  <-- natural language interface
+                    <span class="hl3">+----+-------+--------+</span>
+                         |       |        |
+             +-----------+   +---+----+   +-----------+
+             |               |        |               |
+    <span class="hl">+--------v------+</span>  <span class="hl2">+---v----+</span>  <span class="hl3">+-------v-------+</span>
+    <span class="hl">| Pillar 1:     |</span>  <span class="hl2">|Pillar 2|</span>  <span class="hl3">| Pillar 3:     |</span>
+    <span class="hl">| Unified CI/CD |</span>  <span class="hl2">| IaC    |</span>  <span class="hl3">| AI Agent +    |</span>
+    <span class="hl">|               |</span>  <span class="hl2">|        |</span>  <span class="hl3">| Metrics       |</span>
+    <span class="hl">| Reusable GHA  |</span>  <span class="hl2">| TF     |</span>  <span class="hl3">| DORA + Slack  |</span>
+    <span class="hl">| Security scan |</span>  <span class="hl2">| Golden |</span>  <span class="hl3">| MCP + CLI     |</span>
+    <span class="hl">| Container+Sign|</span>  <span class="hl2">| Paths  |</span>  <span class="hl3">| Scaffolding   |</span>
+    <span class="hl">+---------------+</span>  <span class="hl2">+--------+</span>  <span class="hl3">+---------------+</span></div>
+    <p class="small mt">Teams get CI/CD + infra + AI assistance by default. Zero portals, zero tickets, zero waiting.</p>
+  </div>
+</div>
+
+<!-- ===== SLIDE 4: WHAT'S BUILT ===== -->
+<div class="slide" id="s4">
+  <div class="content center">
+    <h2>Not Slides. Working Code.</h2>
+    <p class="subtitle mb">Everything below is built, tested, and pushed to GitHub</p>
+    <div class="stat-row">
+      <div class="stat"><div class="number">24</div><div class="label">Agent Tools</div></div>
+      <div class="stat green"><div class="number">274</div><div class="label">Tests Passing</div></div>
+      <div class="stat amber"><div class="number">8</div><div class="label">GHA Workflows</div></div>
+      <div class="stat purple"><div class="number">4</div><div class="label">Surfaces</div></div>
+      <div class="stat"><div class="number">5</div><div class="label">Repositories</div></div>
+    </div>
+    <div class="grid-3 mt">
+      <div class="card blue">
+        <h3>platform-workflows</h3>
+        <ul>
+          <li>Python, Node, Java CI</li>
+          <li>Security scanning (Trivy+CodeQL)</li>
+          <li>Container build + cosign</li>
+          <li>DORA metrics workflow</li>
+        </ul>
+      </div>
+      <div class="card green">
+        <h3>platform-terraform</h3>
+        <ul>
+          <li>Cloud Run + GCS modules</li>
+          <li>3 environments (dev/stg/prod)</li>
+          <li>GitOps: plan-on-PR, apply-on-merge</li>
+          <li>Promotion with skip prevention</li>
+        </ul>
+      </div>
+      <div class="card purple">
+        <h3>platform-agent</h3>
+        <ul>
+          <li>Google ADK + MCP server</li>
+          <li>Slack bot + Chat API</li>
+          <li>DORA engine (5 metrics)</li>
+          <li>Zero-click project scaffolding</li>
+        </ul>
+      </div>
+    </div>
+    <p class="small mt">Built on Google Cloud Shell during off-hours. GitHub org: terzo241-platform</p>
+  </div>
+</div>
+
+<!-- ===== SLIDE 5: PILLAR 1 — CI/CD ===== -->
+<div class="slide" id="s5">
+  <div class="content">
+    <div class="pillar-header"><div class="pillar-icon" style="background:rgba(59,130,246,0.2); color:var(--accent);">1</div><h2 style="margin-bottom:0;">Unified CI/CD</h2></div>
+    <p class="subtitle mb">Teams get enterprise-grade CI by adding 6 lines of YAML</p>
+    <div class="grid-2">
+      <div class="card blue">
+        <h3>Reusable Workflows</h3>
+        <ul>
+          <li>Python CI (ruff + pytest + Bandit)</li>
+          <li>Node CI (lint + test + Playwright sharding)</li>
+          <li>Java CI (Maven/Gradle + SpotBugs + OWASP)</li>
+          <li>Security scan (Trivy + gitleaks + CodeQL v4)</li>
+          <li>Container build (Docker + Trivy + cosign + SLSA)</li>
+          <li>Deploy to Cloud Run (OIDC, zero stored credentials)</li>
+        </ul>
+      </div>
+      <div class="card blue">
+        <h3>What Teams Get for Free</h3>
+        <ul>
+          <li>Vulnerability scanning on every PR</li>
+          <li>Supply chain security (SBOM + provenance + signing)</li>
+          <li>Secret detection (gitleaks) before code ships</li>
+          <li>Container scanning before image push</li>
+          <li>OIDC auth (no secrets in GitHub, ever)</li>
+          <li>3-env deploy: dev (auto) / staging (tag) / prod (approve)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="quote mt">"The golden path is the only path. Teams don't opt in to security — they'd have to opt out."</div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 6: PILLAR 2 — IaC ===== -->
+<div class="slide" id="s6">
+  <div class="content">
+    <div class="pillar-header"><div class="pillar-icon" style="background:rgba(16,185,129,0.2); color:var(--accent2);">2</div><h2 style="margin-bottom:0;">Infrastructure as Code</h2></div>
+    <p class="subtitle mb">Production-grade infra with 7 lines of config. Module encodes incident scars.</p>
+    <div class="grid-2">
+      <div class="card green">
+        <h3>Golden Path Modules</h3>
+        <ul>
+          <li>Cloud Run service (13 validations, enforced labels)</li>
+          <li>GCS bucket (public access blocked, versioning, lifecycle)</li>
+          <li>Environment defaults: dev (scale 0-3) / staging (1-5) / prod (2-20)</li>
+          <li>Same module whether caller is human, CI, or AI agent</li>
+        </ul>
+      </div>
+      <div class="card green">
+        <h3>GitOps Workflow</h3>
+        <ul>
+          <li>PR opens: terraform plan runs, output posted as PR comment</li>
+          <li>PR merges: terraform apply runs automatically</li>
+          <li>Promotion workflow: dev &rarr; staging &rarr; prod with skip prevention</li>
+          <li>Concurrency lock: only one apply per environment at a time</li>
+        </ul>
+      </div>
+    </div>
+    <div class="quote mt">"Every validation in the module maps to a past incident. The module is organizational memory."</div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 7: PILLAR 3 — AI AGENT ===== -->
+<div class="slide" id="s7">
+  <div class="content">
+    <div class="pillar-header"><div class="pillar-icon" style="background:rgba(139,92,246,0.2); color:var(--accent5);">3</div><h2 style="margin-bottom:0;">AI Agent Platform</h2></div>
+    <p class="subtitle mb">Developer says "deploy my app to staging" — agent handles the rest</p>
+    <div class="grid-2">
+      <div class="card purple">
+        <h3>Architecture Decisions</h3>
+        <ul>
+          <li>Google ADK (GCP-native, Ford-Google partnership)</li>
+          <li>Provider abstraction: GHA / Tekton / ArgoCD — agent doesn't care</li>
+          <li>MCP server for IDE integration (Claude Code, VS Code, Cursor)</li>
+          <li>Knowledge-as-Code over RAG (tribal knowledge in YAML, not vectors)</li>
+          <li>4-layer guardrails (OWASP LLM06 mitigation)</li>
+        </ul>
+      </div>
+      <div class="card purple">
+        <h3>What Developers Can Do</h3>
+        <ul>
+          <li>Slack: "@agent deploy sample-app to staging"</li>
+          <li>Slack: "@agent create a new Python service called data-pipeline"</li>
+          <li>IDE: use MCP tools directly in VS Code / Claude Code</li>
+          <li>CLI: ford-agent run "show me DORA metrics for my team"</li>
+          <li>All paths enforce separation of duties + prod approval gates</li>
+        </ul>
+      </div>
+    </div>
+    <p class="small mt" style="text-align:center;">24 tools: 4 CI/CD + 4 SCM + 5 GitOps + 4 Infra + 5 DORA + 2 Scaffold &nbsp;|&nbsp; Available via CLI, MCP, Chat API, and Slack</p>
+  </div>
+</div>
+
+<!-- ===== SLIDE 8: DORA METRICS ===== -->
+<div class="slide" id="s8">
+  <div class="content">
+    <h2>Engineering Metrics: The Proof of Value</h2>
+    <p class="subtitle mb">Custom DORA engine — because "trust me, we're faster" isn't a strategy</p>
+    <div class="grid-2">
+      <div>
+        <table class="dora-table">
+          <tr><th>Metric</th><th>What It Measures</th><th>Benchmark</th></tr>
+          <tr><td>Deploy Frequency</td><td>How often code reaches production</td><td><span class="grade elite">Elite: multiple/day</span></td></tr>
+          <tr><td>Lead Time</td><td>Commit to production</td><td><span class="grade high">High: &lt;1 day</span></td></tr>
+          <tr><td>Change Failure Rate</td><td>% of deploys causing incidents</td><td><span class="grade elite">Elite: 0-5%</span></td></tr>
+          <tr><td>MTTR</td><td>How fast we recover from failures</td><td><span class="grade high">High: &lt;1 day</span></td></tr>
+          <tr><td style="color:var(--accent5);">AI Rework Rate</td><td style="color:var(--accent5);">Reverts + hotfixes of recent changes</td><td><span class="grade" style="color:var(--accent5);">NEW: 5th metric</span></td></tr>
+        </table>
+        <p class="small mt">Graded against 2024 State of DevOps Report benchmarks. Team-level rollups, trends, and actionable recommendations built in.</p>
+      </div>
+      <div>
+        <div class="card purple">
+          <h3>Why a 5th Metric?</h3>
+          <ul>
+            <li>AI code generation inflates deployment frequency</li>
+            <li>More PRs merged doesn't mean more value delivered</li>
+            <li>Rework rate tracks: are we shipping quality or churn?</li>
+            <li>No enterprise tool measures this well yet — we're ahead</li>
+          </ul>
+        </div>
+        <div class="card amber mt">
+          <h3>Enterprise Tool Path</h3>
+          <ul>
+            <li>POC: custom engine (built, working, tested)</li>
+            <li>Scale: evaluate Faros AI vs Apache DevLake</li>
+            <li>Custom engine validates our requirements before procurement</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 9: WHAT I NEED TO DISCOVER ===== -->
+<div class="slide" id="s9">
+  <div class="content">
+    <h2>What I Don't Know Yet</h2>
+    <p class="subtitle mb">This is my starting hypothesis — not my final answer. I need to learn Ford's reality first.</p>
+    <div class="discovery-grid">
+      <div class="discovery-item">
+        <h4 style="color: var(--accent);">Current CI/CD Landscape</h4>
+        <p>What are teams using today? Tekton, Jenkins, custom scripts? What works, what doesn't? What customizations do teams depend on?</p>
+      </div>
+      <div class="discovery-item">
+        <h4 style="color: var(--accent2);">Team Constraints</h4>
+        <p>Compliance requirements, air-gap restrictions, data residency, approval workflows. What can't change vs. what teams want to change?</p>
+      </div>
+      <div class="discovery-item">
+        <h4 style="color: var(--accent3);">Organizational Dynamics</h4>
+        <p>Which teams are eager to adopt? Which are resistant? Who are the internal champions? What's been tried before and failed?</p>
+      </div>
+      <div class="discovery-item">
+        <h4 style="color: var(--accent5);">Existing Tooling + Knowledge</h4>
+        <p>What tribal knowledge exists? What documentation is missing? Are there existing platform initiatives I should align with?</p>
+      </div>
+    </div>
+    <div class="quote mt">"The worst thing an architect can do is arrive with all the answers before understanding the questions."</div>
+    <p class="small mt center">Everything I've built is a prototype to accelerate discovery — not a prescription to impose.</p>
+  </div>
+</div>
+
+<!-- ===== SLIDE 10: ROADMAP ===== -->
+<div class="slide" id="s10">
+  <div class="content">
+    <h2>Proposed 90-Day Roadmap</h2>
+    <p class="subtitle mb">Phased approach — discover first, then validate, then expand</p>
+    <div class="timeline">
+      <div class="phase p1">
+        <h3 style="color: var(--accent);">Phase 1: Discover</h3>
+        <p class="small" style="margin-bottom: 8px;">Week 1-4</p>
+        <ul>
+          <li>Map current CI/CD + infra landscape</li>
+          <li>Interview 5-8 teams (pain points)</li>
+          <li>Identify one pilot team</li>
+          <li>Understand compliance constraints</li>
+          <li>Assess GHEC EMU capabilities</li>
+        </ul>
+      </div>
+      <div class="phase p2">
+        <h3 style="color: var(--accent2);">Phase 2: Pilot</h3>
+        <p class="small" style="margin-bottom: 8px;">Week 5-8</p>
+        <ul>
+          <li>Adapt POC to Ford's constraints</li>
+          <li>Deploy with one pilot team</li>
+          <li>Measure before/after DORA metrics</li>
+          <li>Collect feedback, iterate</li>
+          <li>Document what works at Ford scale</li>
+        </ul>
+      </div>
+      <div class="phase p3">
+        <h3 style="color: var(--accent3);">Phase 3: Validate</h3>
+        <p class="small" style="margin-bottom: 8px;">Week 9-10</p>
+        <ul>
+          <li>Expand to 3-5 teams</li>
+          <li>Measure adoption friction</li>
+          <li>Refine golden paths</li>
+          <li>Build internal champions</li>
+        </ul>
+      </div>
+      <div class="phase p4">
+        <h3 style="color: var(--accent5);">Phase 4: Propose</h3>
+        <p class="small" style="margin-bottom: 8px;">Week 11-12</p>
+        <ul>
+          <li>Present data-driven results</li>
+          <li>Org-wide rollout proposal</li>
+          <li>Vendor evaluation (Faros AI / DevLake)</li>
+          <li>Scaling architecture for 80+ teams</li>
+        </ul>
+      </div>
+    </div>
+    <p class="small center mt">This timeline adapts to what I discover. Phase 1 output determines everything after it.</p>
+  </div>
+</div>
+
+<!-- ===== SLIDE 11: THE ASK ===== -->
+<div class="slide" id="s11">
+  <div class="content">
+    <h2>What I'd Like From You</h2>
+    <p class="subtitle mb">Three things to get started</p>
+    <div class="ask-item">
+      <div class="ask-number">1</div>
+      <div class="ask-text">
+        <h4>Guidance on the current landscape</h4>
+        <p>Point me to the right people, teams, and documentation. What's been tried before? What are the sacred cows? Where is the real pain?</p>
+      </div>
+    </div>
+    <div class="ask-item">
+      <div class="ask-number">2</div>
+      <div class="ask-text">
+        <h4>One pilot team to start with</h4>
+        <p>A team that's open to trying something new. Not the biggest team — the most willing. Success with one team is more valuable than a perfect plan for eighty.</p>
+      </div>
+    </div>
+    <div class="ask-item">
+      <div class="ask-number">3</div>
+      <div class="ask-text">
+        <h4>Regular alignment check-ins</h4>
+        <p>Short, frequent conversations to calibrate direction as I learn more. I'd rather course-correct weekly than deliver a plan that misses the mark.</p>
+      </div>
+    </div>
+    <div style="text-align: center; margin-top: 32px;">
+      <div style="width: 60px; height: 3px; background: var(--accent); margin: 0 auto 16px;"></div>
+      <p style="font-size: 18px; color: var(--text);">The POC is my proof of commitment.</p>
+      <p style="font-size: 18px; color: var(--text);">The discovery is my respect for what's already here.</p>
+      <p class="small mt">Vinoth Chinnadurai &nbsp;|&nbsp; Platform Architect &nbsp;|&nbsp; Ready to begin</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let current = 0;
+
+function show(n) {
+  if (n < 0 || n >= total) return;
+  slides[current].classList.remove('active');
+  current = n;
+  slides[current].classList.add('active');
+  document.getElementById('slideNum').textContent = `${current + 1} / ${total}`;
+  document.getElementById('progress').style.width = `${((current + 1) / total) * 100}%`;
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); show(current + 1); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); show(current - 1); }
+  if (e.key === 'Home') { e.preventDefault(); show(0); }
+  if (e.key === 'End') { e.preventDefault(); show(total - 1); }
+});
+
+document.addEventListener('click', (e) => {
+  if (e.clientX > window.innerWidth / 2) show(current + 1);
+  else show(current - 1);
+});
+
+show(0);
+</script>
+</body>
+</html>
