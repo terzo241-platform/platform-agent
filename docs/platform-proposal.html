@@ -387,8 +387,8 @@
 <!-- ===== SLIDE 4: WHAT'S BUILT ===== -->
 <div class="slide" id="s4">
   <div class="content center">
-    <h2>Not Slides. Working Code.</h2>
-    <p class="subtitle mb">Everything below is built, tested, and pushed to GitHub</p>
+    <h2>Proof of Concept: Built to Learn</h2>
+    <p class="subtitle mb">A working prototype built during off-hours to validate feasibility — starting point for adaptation, not a prescription</p>
     <div class="stat-row">
       <div class="stat"><div class="number">24</div><div class="label">Agent Tools</div></div>
       <div class="stat green"><div class="number">274</div><div class="label">Tests Passing</div></div>
@@ -425,7 +425,7 @@
         </ul>
       </div>
     </div>
-    <p class="small mt">Built on Google Cloud Shell during off-hours. GitHub org: terzo241-platform</p>
+    <p class="small mt">Built on personal GitHub (terzo241-platform) during off-hours. Needs adaptation to Ford's compliance, security, and infrastructure constraints.</p>
   </div>
 </div>
 
@@ -466,7 +466,7 @@
 <div class="slide" id="s6">
   <div class="content">
     <div class="pillar-header"><div class="pillar-icon" style="background:rgba(16,185,129,0.2); color:var(--accent2);">2</div><h2 style="margin-bottom:0;">Infrastructure as Code</h2></div>
-    <p class="subtitle mb">Production-grade infra with 7 lines of config. Module encodes incident scars.</p>
+    <p class="subtitle mb">Production-grade infra with 7 lines of config. Every validation maps to a past lesson learned.</p>
     <div class="grid-2">
       <div class="card green">
         <h3>Golden Path Modules</h3>
@@ -522,8 +522,74 @@
   </div>
 </div>
 
-<!-- ===== SLIDE 8: DORA METRICS ===== -->
+<!-- ===== SLIDE 8: HOW IT WORKS ===== -->
 <div class="slide" id="s8">
+  <div class="content">
+    <h2>How It Works — Request Flow</h2>
+    <p class="subtitle mb">From natural language to infrastructure action in 6 steps</p>
+
+    <div style="display:flex; align-items:center; justify-content:center; gap:6px; margin-bottom:20px; flex-wrap:wrap;">
+      <div style="background:var(--surface); border:1px solid var(--accent3); border-radius:10px; padding:12px 16px; text-align:center; min-width:110px;">
+        <div style="font-weight:700; font-size:14px; color:var(--accent3);">Developer</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:3px;">Claude Code / VS Code / CLI</div>
+      </div>
+      <div style="color:var(--muted); font-size:22px; font-weight:700;">&#8594;</div>
+      <div style="background:var(--surface); border:1px solid var(--accent); border-radius:10px; padding:12px 16px; text-align:center; min-width:110px;">
+        <div style="font-weight:700; font-size:14px; color:var(--accent);">MCP Server</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:3px;">stdio or HTTP</div>
+      </div>
+      <div style="color:var(--muted); font-size:22px; font-weight:700;">&#8594;</div>
+      <div style="background:var(--surface); border:1px solid var(--accent5); border-radius:10px; padding:12px 16px; text-align:center; min-width:110px;">
+        <div style="font-weight:700; font-size:14px; color:var(--accent5);">ADK Agent</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:3px;">Gemini Flash / Claude</div>
+      </div>
+      <div style="color:var(--muted); font-size:22px; font-weight:700;">&#8594;</div>
+      <div style="background:var(--surface); border:1px solid var(--accent2); border-radius:10px; padding:12px 16px; text-align:center; min-width:110px;">
+        <div style="font-weight:700; font-size:14px; color:var(--accent2);">Provider Router</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:3px;">Auto-detect backend</div>
+      </div>
+      <div style="color:var(--muted); font-size:22px; font-weight:700;">&#8594;</div>
+      <div style="background:var(--surface); border:1px solid var(--accent4); border-radius:10px; padding:12px 16px; text-align:center; min-width:110px;">
+        <div style="font-weight:700; font-size:14px; color:var(--accent4);">Infrastructure</div>
+        <div style="font-size:11px; color:var(--muted); margin-top:3px;">GitHub / Tekton / ArgoCD</div>
+      </div>
+    </div>
+
+    <div class="arch-diagram" style="font-size:11.5px; text-align:left; line-height:1.45;"><span class="hl3">CLIENT LAYER</span>                          <span class="hl">AGENT LAYER</span>                                <span class="hl2">INFRASTRUCTURE</span>
+
+  <span class="hl3">┌──────────────┐</span>                    ┌──────────────────────────────────────────────────┐
+  <span class="hl3">│ Claude Code  │</span>───┐                │  <span class="hl">Ford Platform Agent</span>  (Google ADK v2.6.2)        │
+  <span class="hl3">└──────────────┘</span>   │                │                                                  │
+  <span class="hl3">┌──────────────┐</span>   │  ┌──────────┐  │  ┌──────────┐  ┌──────────────────────────┐  │   <span class="hl2">┌──────────────────┐</span>
+  <span class="hl3">│ VS Code      │</span>───┼──│ <span class="hl">MCP</span>      │──│──│ Guardrail│──│ CI/CD Tools     (4 tools)│──│──▶<span class="hl2">│ GitHub Actions    │</span>
+  <span class="hl3">└──────────────┘</span>   │  │ <span class="hl">Server</span>   │  │  │ Engine   │  │ SCM Tools       (4 tools)│──│──▶<span class="hl2">│ Tekton Pipelines  │</span>
+  <span class="hl3">┌──────────────┐</span>   │  │ (v2.2.0) │  │  │          │  │ GitOps Tools    (5 tools)│──│──▶<span class="hl2">│ ArgoCD            │</span>
+  <span class="hl3">│ Gemini CLI   │</span>───┤  │ stdio /  │  │  │ Rate Limit│  │ Infra Tools     (4 tools)│──│──▶<span class="hl2">│ Terraform GitOps  │</span>
+  <span class="hl3">└──────────────┘</span>   │  │ HTTP     │  │  │ Audit    │  └──────────────────────────┘  │   <span class="hl2">└──────────────────┘</span>
+  <span class="hl3">┌──────────────┐</span>   │  └──────────┘  │  │ HITL     │                                │
+  <span class="hl3">│ Any MCP      │</span>───┘                │  └──────────┘  ┌──────────────────────────┐  │
+  <span class="hl3">│ Client       │</span>                    │               │ <span class="hl3">Knowledge as Code</span>        │  │
+  <span class="hl3">└──────────────┘</span>                    │               │ practices/ guardrails/    │  │
+                                      │               │ runbooks/                │  │
+                                      │               └──────────────────────────┘  │
+                                      │                                              │
+                                      │  LLM: <span class="hl">Gemini 2.5 Flash</span> (90%) + <span class="hl">Claude</span> (10%) │
+                                      │  Both via Vertex AI (VPC-SC, CMEK, IAM)      │
+                                      └──────────────────────────────────────────────────┘</div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:16px; font-size:13px;">
+      <div style="color:var(--muted);"><span style="color:var(--accent3); font-weight:700;">1.</span> Developer asks in natural language via any MCP-compatible client</div>
+      <div style="color:var(--muted);"><span style="color:var(--accent); font-weight:700;">2.</span> MCP Server receives the request, routes to the right tool (24 available)</div>
+      <div style="color:var(--muted);"><span style="color:var(--accent5); font-weight:700;">3.</span> ADK Agent reasons about intent, selects tools, applies guardrails</div>
+      <div style="color:var(--muted);"><span style="color:var(--accent2); font-weight:700;">4.</span> Provider Router auto-detects which backend to call</div>
+      <div style="color:var(--muted);"><span style="color:var(--accent4); font-weight:700;">5.</span> Action executes against real infrastructure, with audit logging</div>
+      <div style="color:var(--muted);"><span style="color:var(--text); font-weight:700;">6.</span> Result returns to the developer in plain language</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SLIDE 9: DORA METRICS ===== -->
+<div class="slide" id="s9">
   <div class="content">
     <h2>Engineering Metrics: The Proof of Value</h2>
     <p class="subtitle mb">Custom DORA engine — because "trust me, we're faster" isn't a strategy</p>
@@ -562,8 +628,8 @@
   </div>
 </div>
 
-<!-- ===== SLIDE 9: WHAT I NEED TO DISCOVER ===== -->
-<div class="slide" id="s9">
+<!-- ===== SLIDE 10: WHAT I NEED TO DISCOVER ===== -->
+<div class="slide" id="s10">
   <div class="content">
     <h2>What I Don't Know Yet</h2>
     <p class="subtitle mb">This is my starting hypothesis — not my final answer. I need to learn Ford's reality first.</p>
@@ -590,8 +656,8 @@
   </div>
 </div>
 
-<!-- ===== SLIDE 10: ROADMAP ===== -->
-<div class="slide" id="s10">
+<!-- ===== SLIDE 11: ROADMAP ===== -->
+<div class="slide" id="s11">
   <div class="content">
     <h2>Proposed 90-Day Roadmap</h2>
     <p class="subtitle mb">Phased approach — discover first, then validate, then expand</p>
@@ -643,8 +709,8 @@
   </div>
 </div>
 
-<!-- ===== SLIDE 11: THE ASK ===== -->
-<div class="slide" id="s11">
+<!-- ===== SLIDE 12: THE ASK ===== -->
+<div class="slide" id="s12">
   <div class="content">
     <h2>What I'd Like From You</h2>
     <p class="subtitle mb">Three things to get started</p>
