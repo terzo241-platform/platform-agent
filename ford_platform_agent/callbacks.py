@@ -21,7 +21,7 @@ import yaml
 from ford_platform_agent.config import GuardrailConfig
 
 if TYPE_CHECKING:
-    from google.adk.agents.context import Context
+    from google.adk.agents.callback_context import CallbackContext
     from google.genai.types import Content
 
 logger = structlog.get_logger()
@@ -77,7 +77,7 @@ def requires_confirmation_for_env(environment: str = "", **kwargs) -> bool:
     return environment.lower() in config.protected_environments
 
 
-async def before_agent_guardrail(ctx: Context) -> Content | None:
+async def before_agent_guardrail(callback_context: CallbackContext, **kwargs) -> Content | None:
     """Pre-execution guardrail — runs before the agent processes each turn.
 
     Checks:
@@ -87,7 +87,8 @@ async def before_agent_guardrail(ctx: Context) -> Content | None:
     if _rate_limiter and not _rate_limiter.check():
         from google.genai.types import Content, Part
 
-        logger.warning("rate_limit_exceeded", session=ctx.session.id if ctx.session else "unknown")
+        session = getattr(callback_context, "session", None)
+        logger.warning("rate_limit_exceeded", session=session.id if session else "unknown")
         return Content(
             role="model",
             parts=[Part(text="Rate limit exceeded. Please wait before making more requests.")],
@@ -95,16 +96,17 @@ async def before_agent_guardrail(ctx: Context) -> Content | None:
     return None
 
 
-async def after_agent_audit(ctx: Context) -> Content | None:
+async def after_agent_audit(callback_context: CallbackContext, **kwargs) -> Content | None:
     """Post-execution audit — logs every agent turn completion.
 
     In production, this writes to BigQuery. For POC, logs to structlog.
     """
+    session = getattr(callback_context, "session", None)
     logger.info(
         "agent_turn_complete",
-        session_id=ctx.session.id if ctx.session else "unknown",
+        session_id=session.id if session else "unknown",
         timestamp=datetime.now(UTC).isoformat(),
-        state_keys=list(ctx.session.state.keys()) if ctx.session else [],
+        state_keys=list(session.state.keys()) if session else [],
     )
     return None
 

@@ -52,6 +52,8 @@ def get_knowledge_instruction(knowledge_dir: str | Path = "knowledge") -> str:
     knowledge_text = load_knowledge(knowledge_dir)
     if not knowledge_text:
         return ""
+    # Replace curly braces — ADK's instruction processor treats {name} as session state variables
+    knowledge_text = knowledge_text.replace("{", "<").replace("}", ">")
     return (
         "\n\n# Ford Platform Knowledge Base\n"
         "The following are Ford's documented practices, guardrails, and runbooks. "
