@@ -19,26 +19,14 @@ import structlog
 import yaml
 
 from ford_platform_agent.config import GuardrailConfig
+from ford_platform_agent.middleware import DESTRUCTIVE_TOOLS as _DESTRUCTIVE_TOOLS
+from ford_platform_agent.middleware import PROD_GUARDED_TOOLS as _PROD_BLOCKED_TOOLS
 
 if TYPE_CHECKING:
     from google.adk.agents.callback_context import CallbackContext
     from google.genai.types import Content
 
 logger = structlog.get_logger()
-
-_DESTRUCTIVE_TOOLS = {
-    "trigger_pipeline",
-    "cancel_pipeline",
-    "sync_application",
-    "rollback_application",
-    "create_pull_request",
-}
-
-_PROD_BLOCKED_TOOLS = {
-    "sync_application",
-    "rollback_application",
-    "trigger_pipeline",
-}
 
 
 class RateLimiter:

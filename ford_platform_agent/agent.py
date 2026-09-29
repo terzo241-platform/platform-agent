@@ -4,6 +4,7 @@ Uses Google ADK with:
 - Gemini 2.5 Flash for tool routing (Tier 1)
 - Claude Sonnet 5 via Vertex AI for complex reasoning (Tier 2, future)
 - Dynamic instruction loading from knowledge base
+- Shared middleware for rate limiting, env protection, audit (all paths)
 - Guardrail callbacks (OWASP LLM06 mitigation)
 - require_confirmation on destructive operations
 """
@@ -27,6 +28,7 @@ from ford_platform_agent.config import (
     TektonConfig,
 )
 from ford_platform_agent.knowledge import get_knowledge_instruction
+from ford_platform_agent.middleware import ToolMeta, ToolMiddleware
 from ford_platform_agent.providers.registry import ProviderRegistry
 from ford_platform_agent.tools import cicd, gitops, infra, metrics, scaffold, scm
 
@@ -96,34 +98,62 @@ def build_agent(
     knowledge_context = get_knowledge_instruction(knowledge_dir)
     full_instruction = SYSTEM_INSTRUCTION + knowledge_context
 
+    mw = ToolMiddleware(guardrail_config)
+    _M = ToolMeta
+    _w = mw.wrap
+
     read_tools = [
-        FunctionTool(cicd.list_pipeline_runs),
-        FunctionTool(cicd.get_pipeline_status),
-        FunctionTool(scm.list_repositories),
-        FunctionTool(scm.get_repository_info),
-        FunctionTool(scm.list_pull_requests),
-        FunctionTool(gitops.list_gitops_applications),
-        FunctionTool(gitops.get_application_status),
-        FunctionTool(gitops.get_deployment_history),
-        FunctionTool(infra.list_environments),
-        FunctionTool(infra.get_plan_output),
-        FunctionTool(scaffold.list_templates),
-        FunctionTool(metrics.get_dora_metrics),
-        FunctionTool(metrics.get_team_metrics),
-        FunctionTool(metrics.compare_repos),
-        FunctionTool(metrics.get_metric_trends),
-        FunctionTool(metrics.get_dora_recommendations),
+        FunctionTool(_w(cicd.list_pipeline_runs, _M(name="list_pipeline_runs"))),
+        FunctionTool(_w(cicd.get_pipeline_status, _M(name="get_pipeline_status"))),
+        FunctionTool(_w(scm.list_repositories, _M(name="list_repositories"))),
+        FunctionTool(_w(scm.get_repository_info, _M(name="get_repository_info"))),
+        FunctionTool(_w(scm.list_pull_requests, _M(name="list_pull_requests"))),
+        FunctionTool(_w(gitops.list_gitops_applications, _M(name="list_gitops_applications"))),
+        FunctionTool(_w(gitops.get_application_status, _M(name="get_application_status"))),
+        FunctionTool(_w(gitops.get_deployment_history, _M(name="get_deployment_history"))),
+        FunctionTool(_w(infra.list_environments, _M(name="list_environments"))),
+        FunctionTool(_w(infra.get_plan_output, _M(name="get_plan_output"))),
+        FunctionTool(_w(scaffold.list_templates, _M(name="list_templates"))),
+        FunctionTool(_w(metrics.get_dora_metrics, _M(name="get_dora_metrics"))),
+        FunctionTool(_w(metrics.get_team_metrics, _M(name="get_team_metrics"))),
+        FunctionTool(_w(metrics.compare_repos, _M(name="compare_repos"))),
+        FunctionTool(_w(metrics.get_metric_trends, _M(name="get_metric_trends"))),
+        FunctionTool(_w(metrics.get_dora_recommendations, _M(name="get_dora_recommendations"))),
     ]
 
     write_tools = [
-        FunctionTool(cicd.trigger_pipeline, require_confirmation=requires_confirmation_for_env),
-        FunctionTool(cicd.cancel_pipeline, require_confirmation=True),
-        FunctionTool(scm.create_pull_request, require_confirmation=True),
-        FunctionTool(gitops.sync_application, require_confirmation=requires_confirmation_for_env),
-        FunctionTool(gitops.rollback_application, require_confirmation=True),
-        FunctionTool(infra.create_service_pr, require_confirmation=True),
-        FunctionTool(infra.approve_and_merge, require_confirmation=True),
-        FunctionTool(scaffold.scaffold_project, require_confirmation=True),
+        FunctionTool(
+            _w(cicd.trigger_pipeline, _M(name="trigger_pipeline", is_destructive=True, is_read_only=False)),
+            require_confirmation=requires_confirmation_for_env,
+        ),
+        FunctionTool(
+            _w(cicd.cancel_pipeline, _M(name="cancel_pipeline", is_destructive=True, is_read_only=False)),
+            require_confirmation=True,
+        ),
+        FunctionTool(
+            _w(scm.create_pull_request, _M(name="create_pull_request", is_read_only=False)),
+            require_confirmation=True,
+        ),
+        FunctionTool(
+            _w(gitops.sync_application, _M(name="sync_application", is_destructive=True, is_read_only=False)),
+            require_confirmation=requires_confirmation_for_env,
+        ),
+        FunctionTool(
+            _w(gitops.rollback_application, _M(name="rollback_application", is_destructive=True, is_read_only=False)),
+            require_confirmation=True,
+        ),
+        FunctionTool(
+            _w(infra.create_service_pr, _M(name="create_service_pr", is_read_only=False)),
+            require_confirmation=True,
+        ),
+        FunctionTool(
+            _w(infra.approve_and_merge, _M(name="approve_and_merge", is_destructive=True, is_read_only=False)),
+            require_confirmation=True,
+        ),
+        FunctionTool(
+            _w(scaffold.scaffold_project, _M(name="scaffold_project", is_read_only=False)),
+            require_confirmation=True,
+        ),
     ]
 
     agent = Agent(

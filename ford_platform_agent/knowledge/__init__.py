@@ -2,13 +2,55 @@
 
 Not RAG. Direct context injection. At Ford's knowledge scale (dozens of docs),
 this is simpler, more predictable, and more maintainable than vector search.
+
+Also provides helpers for MCP resource exposure so any MCP client can
+read the same tribal knowledge the ADK agent gets injected automatically.
 """
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import yaml
+
+KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent.parent / "knowledge"
+
+_CATEGORY_EXTENSIONS = {
+    "practices": (".yaml", ".yml"),
+    "guardrails": (".yaml", ".yml"),
+    "runbooks": (".md",),
+}
+
+
+def list_knowledge_files(knowledge_dir: str | Path | None = None) -> str:
+    """Return a JSON index of all available knowledge files by category."""
+    kdir = Path(knowledge_dir) if knowledge_dir else KNOWLEDGE_DIR
+    index: dict[str, list[str]] = {}
+    for category, exts in _CATEGORY_EXTENSIONS.items():
+        cat_dir = kdir / category
+        if cat_dir.is_dir():
+            index[category] = [
+                f.stem for f in sorted(cat_dir.iterdir()) if f.suffix in exts
+            ]
+        else:
+            index[category] = []
+    return json.dumps(index, indent=2)
+
+
+def read_knowledge_file(
+    category: str,
+    name: str,
+    knowledge_dir: str | Path | None = None,
+) -> str:
+    """Read a single knowledge file by category and name."""
+    kdir = Path(knowledge_dir) if knowledge_dir else KNOWLEDGE_DIR
+    exts = _CATEGORY_EXTENSIONS.get(category, (".yaml", ".yml", ".md"))
+    for ext in exts:
+        filepath = kdir / category / f"{name}{ext}"
+        if filepath.is_file():
+            return filepath.read_text()
+    return f"Knowledge file '{category}/{name}' not found."
 
 
 def load_knowledge(knowledge_dir: str | Path = "knowledge") -> str:

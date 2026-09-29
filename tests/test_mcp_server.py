@@ -1,4 +1,4 @@
-"""Tests for MCP server — tool registration, annotations, and transport."""
+"""Tests for MCP server — tool registration, annotations, resources, prompts, and transport."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ class TestMCPServerMetadata:
         assert mcp.name == "ford-platform-agent"
 
     def test_server_version(self):
-        assert mcp.version == "0.1.0"
+        assert mcp.version == "0.2.0"
 
 
 class TestToolRegistration:
@@ -167,3 +167,79 @@ class TestCLIIntegration:
             assert args.port == 9090
         finally:
             sys.argv = old_argv
+
+
+# ---------------------------------------------------------------------------
+# MCP Resources — knowledge base exposure
+# ---------------------------------------------------------------------------
+
+
+class TestMCPResources:
+    """Knowledge files exposed as MCP resources."""
+
+    @pytest.fixture
+    def resource_templates(self):
+        return [t.uri_template for t in mcp._resource_manager.list_templates()]
+
+    @pytest.fixture
+    def static_resources(self):
+        return [r.uri for r in mcp._resource_manager.list_resources()]
+
+    def test_knowledge_index_registered(self, static_resources):
+        assert "ford://knowledge/index" in static_resources
+
+    def test_practices_template_registered(self, resource_templates):
+        assert "ford://knowledge/practices/{name}" in resource_templates
+
+    def test_guardrails_template_registered(self, resource_templates):
+        assert "ford://knowledge/guardrails/{name}" in resource_templates
+
+    def test_runbooks_template_registered(self, resource_templates):
+        assert "ford://knowledge/runbooks/{name}" in resource_templates
+
+    def test_template_count(self, resource_templates):
+        ford_templates = [t for t in resource_templates if t.startswith("ford://")]
+        assert len(ford_templates) == 3
+
+
+# ---------------------------------------------------------------------------
+# MCP Prompts — runbook workflows
+# ---------------------------------------------------------------------------
+
+
+class TestMCPPrompts:
+    """Runbooks exposed as MCP prompts."""
+
+    @pytest.fixture
+    def prompt_names(self):
+        return [p.name for p in mcp._prompt_manager.list_prompts()]
+
+    def test_incident_response_registered(self, prompt_names):
+        assert "incident-response" in prompt_names
+
+    def test_deployment_review_registered(self, prompt_names):
+        assert "deployment-review" in prompt_names
+
+    def test_prompt_count(self, prompt_names):
+        assert len(prompt_names) == 2
+
+
+# ---------------------------------------------------------------------------
+# MCP Middleware integration
+# ---------------------------------------------------------------------------
+
+
+class TestMCPMiddlewareIntegration:
+    """Verify MCP tools are routed through shared middleware."""
+
+    def test_middleware_instance_exists(self):
+        from ford_platform_agent.mcp_server import _middleware
+
+        assert _middleware is not None
+
+    def test_wrapped_tools_preserve_names(self):
+        from ford_platform_agent import mcp_server
+
+        assert mcp_server._trigger_pipeline.__name__ == "trigger_pipeline"
+        assert mcp_server._list_pipeline_runs.__name__ == "list_pipeline_runs"
+        assert mcp_server._sync_application.__name__ == "sync_application"

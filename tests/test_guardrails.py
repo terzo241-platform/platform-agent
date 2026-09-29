@@ -1,4 +1,4 @@
-"""Tests for guardrail callbacks and knowledge loading."""
+"""Tests for guardrail callbacks, knowledge loading, and middleware parity."""
 
 from __future__ import annotations
 
@@ -10,11 +10,17 @@ import yaml
 from ford_platform_agent.callbacks import (
     GuardrailConfig,
     RateLimiter,
+    _DESTRUCTIVE_TOOLS,
+    _PROD_BLOCKED_TOOLS,
     init_callbacks,
     load_guardrail_rules,
     requires_confirmation_for_env,
 )
 from ford_platform_agent.knowledge import get_knowledge_instruction, load_knowledge
+from ford_platform_agent.middleware import (
+    DESTRUCTIVE_TOOLS as MW_DESTRUCTIVE_TOOLS,
+    PROD_GUARDED_TOOLS as MW_PROD_GUARDED_TOOLS,
+)
 
 
 class TestGuardrailConfig:
@@ -109,3 +115,16 @@ class TestGuardrailRulesLoading:
             rules = load_guardrail_rules(tmpdir)
             assert "env-rules" in rules
             assert rules["env-rules"]["rules"][0]["name"] == "prod-block"
+
+
+class TestMiddlewareGuardrailParity:
+    """Callbacks and middleware must share the same source of truth."""
+
+    def test_callbacks_use_middleware_destructive_tools(self):
+        assert _DESTRUCTIVE_TOOLS is MW_DESTRUCTIVE_TOOLS
+
+    def test_callbacks_use_middleware_prod_blocked_tools(self):
+        assert _PROD_BLOCKED_TOOLS is MW_PROD_GUARDED_TOOLS
+
+    def test_all_prod_blocked_are_destructive(self):
+        assert _PROD_BLOCKED_TOOLS.issubset(_DESTRUCTIVE_TOOLS)
