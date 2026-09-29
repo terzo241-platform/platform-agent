@@ -1,0 +1,31 @@
+# Platform Agent — Code Ownership
+# Require review from platform team for all changes.
+# Maps to GitHub's CODEOWNERS feature (requires branch protection with "require code owner reviews").
+
+# Default: platform-core team owns everything
+*                                   @terzo241-platform/platform-core
+
+# Agent framework + guardrails: security review required
+ford_platform_agent/callbacks.py    @terzo241-platform/platform-security
+ford_platform_agent/agent.py        @terzo241-platform/platform-core
+
+# MCP server: protocol changes need platform-core
+ford_platform_agent/mcp_server.py   @terzo241-platform/platform-core
+
+# Tools: domain-specific ownership
+ford_platform_agent/tools/infra.py  @terzo241-platform/platform-infra
+ford_platform_agent/tools/cicd.py   @terzo241-platform/platform-core
+ford_platform_agent/tools/gitops.py @terzo241-platform/platform-infra
+
+# Provider integrations
+ford_platform_agent/providers/      @terzo241-platform/platform-core
+
+# Governance scripts: security team must approve
+scripts/governance-setup.sh         @terzo241-platform/platform-security
+scripts/policy-check.sh             @terzo241-platform/platform-security
+
+# CI/CD workflows: platform-core owns the pipeline
+.github/workflows/                  @terzo241-platform/platform-core
+
+# Config and dependencies: broad review
+pyproject.toml                      @terzo241-platform/platform-core
