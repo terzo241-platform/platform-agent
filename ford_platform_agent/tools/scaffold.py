@@ -87,6 +87,13 @@ def _validate_service_name(name: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+_CODEQL_LANGUAGES = {
+    "python-fastapi": "python",
+    "node-nextjs": "javascript",
+    "java-spring": "java",
+}
+
+
 def _ci_workflow(template_key: str, service_name: str) -> str:
     tmpl = _TEMPLATES[template_key]
     workflow_file = tmpl["ci_workflow"]
@@ -110,6 +117,70 @@ def _ci_workflow(template_key: str, service_name: str) -> str:
           ci:
             uses: {WORKFLOWS_ORG}/platform-workflows/.github/workflows/{workflow_file}@main
             with:{extras}
+    """)
+
+
+def _security_workflow(template_key: str) -> str:
+    language = _CODEQL_LANGUAGES[template_key]
+    return textwrap.dedent(f"""\
+        name: Security
+        on:
+          push:
+            branches: [main]
+          pull_request:
+            branches: [main]
+        permissions:
+          contents: read
+          security-events: write
+        jobs:
+          scan:
+            uses: {WORKFLOWS_ORG}/platform-workflows/.github/workflows/security-scan.yml@main
+            with:
+              language: '{language}'
+              enable-codeql: true
+              enable-trivy: true
+              enable-gitleaks: true
+              enable-dependency-review: true
+              enable-sbom: true
+    """)
+
+
+def _dora_metrics_workflow() -> str:
+    return textwrap.dedent(f"""\
+        name: DORA Metrics
+        on:
+          schedule:
+            - cron: '0 6 * * 1'
+          workflow_dispatch:
+        permissions:
+          contents: read
+          pull-requests: read
+        jobs:
+          metrics:
+            uses: {WORKFLOWS_ORG}/platform-workflows/.github/workflows/dora-metrics.yml@main
+            secrets:
+              github_token: ${{{{ secrets.GITHUB_TOKEN }}}}
+    """)
+
+
+def _container_build_workflow(service_name: str) -> str:
+    return textwrap.dedent(f"""\
+        name: Container Build
+        on:
+          push:
+            branches: [main]
+        permissions:
+          contents: read
+          id-token: write
+        jobs:
+          build:
+            uses: {WORKFLOWS_ORG}/platform-workflows/.github/workflows/container-build.yml@main
+            with:
+              image-name: '{service_name}'
+              gcp-project-id: ${{{{ vars.GCP_PROJECT_ID }}}}
+              wif-provider: ${{{{ vars.WIF_PROVIDER }}}}
+              wif-service-account: ${{{{ vars.WIF_SERVICE_ACCOUNT }}}}
+              push: true
     """)
 
 
@@ -439,6 +510,9 @@ def generate_project_files(template: str, service_name: str) -> dict[str, str]:
 
     files = generator(service_name)
     files[".github/workflows/ci.yml"] = _ci_workflow(template, service_name)
+    files[".github/workflows/security.yml"] = _security_workflow(template)
+    files[".github/workflows/container-build.yml"] = _container_build_workflow(service_name)
+    files[".github/workflows/dora-metrics.yml"] = _dora_metrics_workflow()
     return files
 
 
@@ -467,6 +541,9 @@ async def list_templates() -> dict:
                 "default_port": t["default_port"],
                 "includes": [
                     "CI workflow (centralized, pre-configured)",
+                    "Security scan (CodeQL + Trivy + gitleaks + SBOM)",
+                    "Container build (Artifact Registry via WIF)",
+                    "DORA metrics (weekly baseline from day one)",
                     "Multi-stage Dockerfile (production-ready)",
                     "Health check endpoint",
                     "Unit test scaffold",
@@ -594,6 +671,9 @@ async def scaffold_project(
             f"- Repo: {repo.url}\n"
             f"- {len(project_files)} files pushed (app, Dockerfile, CI, tests)\n"
             f"- CI workflow calls {WORKFLOWS_ORG}/platform-workflows/{tmpl['ci_workflow']}\n"
+            f"- Security scan (CodeQL/{_CODEQL_LANGUAGES[template]}, Trivy, gitleaks, SBOM)\n"
+            f"- Container build wired to Artifact Registry via WIF\n"
+            f"- DORA metrics (weekly schedule, baseline from day one)\n"
             f"- Infra PR #{infra_result.get('pr_number')} opened in {TERRAFORM_REPO} "
             f"for {environment} Cloud Run deployment\n"
             f"- Next: check the PR for Terraform plan, then merge to provision infra"
