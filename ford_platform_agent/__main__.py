@@ -12,6 +12,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import structlog
 
 structlog.configure(
