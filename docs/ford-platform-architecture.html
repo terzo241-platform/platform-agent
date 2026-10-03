@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ford Platform Modernization — Architecture</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #232735;
+    --border: #2e3347;
+    --border-accent: #3d4259;
+    --text: #e8eaf0;
+    --text-muted: #8b8fa8;
+    --text-dim: #5c6078;
+    --blue: #4e8cff;
+    --blue-dim: #2a4a8a;
+    --green: #34d399;
+    --green-dim: #1a6b4d;
+    --purple: #a78bfa;
+    --purple-dim: #5b4a8a;
+    --orange: #fb923c;
+    --orange-dim: #8a5220;
+    --red: #f87171;
+    --cyan: #22d3ee;
+    --cyan-dim: #126b77;
+    --pink: #f472b6;
+    --yellow: #fbbf24;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    line-height: 1.5;
+    padding: 32px;
+    min-height: 100vh;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+  .header h1 span { color: var(--blue); }
+  .header .subtitle {
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .stats-bar {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    text-align: center;
+  }
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Layers */
+  .architecture {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .layer {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .layer:hover { border-color: var(--border-accent); }
+  .layer-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 24px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .layer-header:hover { background: var(--surface); }
+  .layer-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .layer-title {
+    font-size: 16px;
+    font-weight: 600;
+    flex: 1;
+  }
+  .layer-desc {
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .layer-chevron {
+    color: var(--text-dim);
+    font-size: 18px;
+    transition: transform 0.2s;
+  }
+  .layer.open .layer-chevron { transform: rotate(90deg); }
+  .layer-body {
+    display: none;
+    padding: 0 24px 24px;
+  }
+  .layer.open .layer-body { display: block; }
+
+  /* Color themes per layer */
+  .layer-4 .layer-badge { background: var(--purple-dim); color: var(--purple); }
+  .layer-4 { border-left: 3px solid var(--purple); }
+  .layer-3 .layer-badge { background: var(--orange-dim); color: var(--orange); }
+  .layer-3 { border-left: 3px solid var(--orange); }
+  .layer-2 .layer-badge { background: var(--blue-dim); color: var(--blue); }
+  .layer-2 { border-left: 3px solid var(--blue); }
+  .layer-1 .layer-badge { background: var(--green-dim); color: var(--green); }
+  .layer-1 { border-left: 3px solid var(--green); }
+
+  /* Cards */
+  .cards {
+    display: grid;
+    gap: 12px;
+  }
+  .cards-2 { grid-template-columns: 1fr 1fr; }
+  .cards-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .cards-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .cards-5 { grid-template-columns: 1fr 1fr 1fr 1fr 1fr; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .card:hover {
+    background: var(--surface2);
+    border-color: var(--border-accent);
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .icon { font-size: 16px; }
+  .card-items {
+    list-style: none;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .card-items li {
+    padding: 3px 0;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .card-items li::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+    margin-top: 6px;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.3px;
+  }
+  .tag-green { background: var(--green-dim); color: var(--green); }
+  .tag-blue { background: var(--blue-dim); color: var(--blue); }
+  .tag-purple { background: var(--purple-dim); color: var(--purple); }
+  .tag-orange { background: var(--orange-dim); color: var(--orange); }
+  .tag-red { background: rgba(248,113,113,0.15); color: var(--red); }
+  .tag-cyan { background: var(--cyan-dim); color: var(--cyan); }
+
+  /* Surfaces section */
+  .surfaces {
+    margin-top: 20px;
+  }
+  .surface-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  /* Connector */
+  .connector {
+    display: flex;
+    justify-content: center;
+    padding: 4px 0;
+  }
+  .connector-line {
+    width: 2px;
+    height: 20px;
+    background: var(--border);
+    position: relative;
+  }
+  .connector-line::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: -3px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--border);
+    border-bottom: 2px solid var(--border);
+    transform: rotate(45deg);
+  }
+
+  /* Pillars */
+  .pillars {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-top: 40px;
+    margin-bottom: 40px;
+  }
+  .pillar {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+  .pillar:hover { border-color: var(--border-accent); }
+  .pillar-num {
+    position: absolute;
+    top: -12px;
+    left: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 10px;
+    letter-spacing: 0.5px;
+  }
+  .pillar-1 { border-top: 3px solid var(--blue); }
+  .pillar-1 .pillar-num { background: var(--blue-dim); color: var(--blue); }
+  .pillar-2 { border-top: 3px solid var(--green); }
+  .pillar-2 .pillar-num { background: var(--green-dim); color: var(--green); }
+  .pillar-3 { border-top: 3px solid var(--purple); }
+  .pillar-3 .pillar-num { background: var(--purple-dim); color: var(--purple); }
+  .pillar h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 4px;
+    margin-bottom: 12px;
+  }
+  .pillar-items {
+    list-style: none;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .pillar-items li {
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .pillar-items li:last-child { border-bottom: none; }
+  .pillar-items code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    background: var(--surface2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--text);
+  }
+
+  /* Cost & ROI */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 32px;
+  }
+  .metric-box {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .metric-box h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
+  .metric-row:last-child { border-bottom: none; }
+  .metric-label { color: var(--text-muted); }
+  .metric-value { font-weight: 600; }
+
+  /* Gaps */
+  .gaps {
+    margin-top: 32px;
+    border: 1px solid rgba(248,113,113,0.2);
+    border-radius: 12px;
+    padding: 20px;
+    background: rgba(248,113,113,0.03);
+  }
+  .gaps h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--red);
+    margin-bottom: 12px;
+  }
+  .gap-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .gap-item {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 6px 10px;
+    background: var(--surface);
+    border-radius: 6px;
+    border-left: 2px solid var(--red);
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  /* Tool grid */
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .tool-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+    font-size: 11px;
+  }
+  .tool-cell .tool-name {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .tool-cell .tool-count {
+    color: var(--text-muted);
+    font-size: 10px;
+  }
+
+  @media (max-width: 900px) {
+    .pillars { grid-template-columns: 1fr; }
+    .cards-3, .cards-4, .cards-5 { grid-template-columns: 1fr 1fr; }
+    .metrics-row { grid-template-columns: 1fr; }
+    .gap-grid { grid-template-columns: 1fr; }
+    .tool-grid { grid-template-columns: repeat(3, 1fr); }
+    .stats-bar { gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Ford <span>Platform Modernization</span></h1>
+  <div class="subtitle">Agent-First Developer Platform &mdash; POC Complete (20 Days)</div>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-value" style="color:var(--blue)">5,489</div><div class="stat-label">Lines of Code</div></div>
+    <div class="stat"><div class="stat-value" style="color:var(--green)">317</div><div class="stat-label">Tests Passing</div></div>
+    <div class="stat"><div class="stat-value" style="color:var(--purple)">24</div><div class="stat-label">Agent Tools</div></div>
+    <div class="stat"><div class="stat-value" style="color:var(--orange)">5</div><div class="stat-label">DORA Metrics</div></div>
+    <div class="stat"><div class="stat-value" style="color:var(--cyan)">5</div><div class="stat-label">Surfaces</div></div>
+    <div class="stat"><div class="stat-value" style="color:var(--yellow)">2,114%</div><div class="stat-label">Projected ROI</div></div>
+  </div>
+</div>
+
+<div class="architecture">
+
+  <!-- 3 PILLARS -->
+  <div class="pillars">
+    <div class="pillar pillar-1">
+      <div class="pillar-num">PILLAR 1</div>
+      <h3>CI/CD Unification</h3>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Tekton &rarr; GitHub Actions</div>
+      <ul class="pillar-items">
+        <li><code>python-ci.yml</code> Python CI</li>
+        <li><code>node-ci.yml</code> Node.js CI</li>
+        <li><code>java-ci.yml</code> Java CI</li>
+        <li><code>security-scan.yml</code> Trivy + gitleaks + SBOM</li>
+        <li><code>container-build.yml</code> Build + cosign + OIDC</li>
+        <li><code>deploy-cloudrun.yml</code> Cloud Run deploy</li>
+        <li><code>terraform-ci.yml</code> Terraform CI</li>
+        <li><code>dora-metrics.yml</code> DORA collection</li>
+      </ul>
+      <div style="margin-top:10px"><span class="tag tag-blue">platform-workflows</span></div>
+    </div>
+
+    <div class="pillar pillar-2">
+      <div class="pillar-num">PILLAR 2</div>
+      <h3>Centralized Terraform</h3>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Golden-Path IaC Modules</div>
+      <ul class="pillar-items">
+        <li><code>cloud-run</code> module &mdash; service deployment</li>
+        <li><code>gcs</code> module &mdash; storage buckets</li>
+        <li><code>terraform.yml</code> plan on PR, apply on merge</li>
+        <li><code>promote.yml</code> dev &rarr; staging &rarr; prod</li>
+        <li>Agent creates PRs, never runs TF directly</li>
+        <li>Separation of duties enforced</li>
+      </ul>
+      <div style="margin-top:10px"><span class="tag tag-green">platform-terraform</span></div>
+    </div>
+
+    <div class="pillar pillar-3">
+      <div class="pillar-num">PILLAR 3</div>
+      <h3>AI Agent Interface</h3>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Agent-First, Not Portal-First</div>
+      <ul class="pillar-items">
+        <li>Google ADK v2.6.2 agent framework</li>
+        <li>24 tools across 6 modules</li>
+        <li>Provider abstraction (GHA / Tekton / Argo)</li>
+        <li>Knowledge-as-Code (YAML + MD)</li>
+        <li>5 surfaces (MCP, API, Slack, CLI, GHA)</li>
+        <li>3 scaffold templates</li>
+        <li>DORA metrics engine</li>
+      </ul>
+      <div style="margin-top:10px"><span class="tag tag-purple">platform-agent</span></div>
+    </div>
+  </div>
+
+  <!-- LAYER 4: AGENT FRAMEWORK -->
+  <div class="layer layer-4 open">
+    <div class="layer-header" onclick="this.parentElement.classList.toggle('open')">
+      <span class="layer-badge">L4</span>
+      <span class="layer-title">Agent Framework</span>
+      <span class="layer-desc">Google ADK &mdash; reasoning, state, multi-step workflows</span>
+      <span class="layer-chevron">&#9656;</span>
+    </div>
+    <div class="layer-body">
+      <div class="cards cards-3">
+        <div class="card">
+          <div class="card-title"><span class="icon">&#9881;</span> Core Agent</div>
+          <ul class="card-items">
+            <li>Google ADK v2.6.2 (Apache-2.0)</li>
+            <li>24 FunctionTools registered</li>
+            <li>Knowledge-as-Code loaded at startup</li>
+            <li>Guardrails via before/after callbacks</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">&#9889;</span> LLM Router</div>
+          <ul class="card-items">
+            <li><span class="tag tag-cyan">90%</span> Gemini 2.5 Flash &mdash; $0.30/$2.50/MTok</li>
+            <li><span class="tag tag-purple">10%</span> Claude Sonnet 5 &mdash; $2/$10/MTok</li>
+            <li>Both via Vertex AI (single vendor)</li>
+            <li>Blended cost: ~$88/mo</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title"><span class="icon">&#128279;</span> Provider Abstraction</div>
+          <ul class="card-items">
+            <li><code>base.py</code> &mdash; Protocol definitions</li>
+            <li><code>github.py</code> &mdash; GHA CI + GitHub SCM</li>
+            <li><code>tekton.py</code> &mdash; K8s API pipelines</li>
+            <li><code>argocd.py</code> &mdash; GitOps management</li>
+            <li><code>registry.py</code> &mdash; Auto-detect router</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><div class="connector-line"></div></div>
+
+  <!-- LAYER 3: GOVERNANCE -->
+  <div class="layer layer-3 open">
+    <div class="layer-header" onclick="this.parentElement.classList.toggle('open')">
+      <span class="layer-badge">L3</span>
+      <span class="layer-title">Governance &amp; Security</span>
+      <span class="layer-desc">Callbacks, approval gates, OWASP mapping, audit</span>
+      <span class="layer-chevron">&#9656;</span>
+    </div>
+    <div class="layer-body">
+      <div class="cards cards-4">
+        <div class="card">
+          <div class="card-title">Approval Gates</div>
+          <ul class="card-items">
+            <li>ADK <code>require_confirmation</code></li>
+            <li>Env-based escalation</li>
+            <li>PRD always human-approved</li>
+            <li>Destructive tools gated</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Policy Checks</div>
+          <ul class="card-items">
+            <li>7 secret pattern checks</li>
+            <li>10 banned code patterns</li>
+            <li>File size limits</li>
+            <li>CODEOWNERS enforcement</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Audit Trail</div>
+          <ul class="card-items">
+            <li>structlog &rarr; BigQuery (planned)</li>
+            <li>before/after agent callbacks</li>
+            <li>Rate limiting per user</li>
+            <li>SOX / FedRAMP path defined</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">OWASP LLM Top 10</div>
+          <ul class="card-items">
+            <li><span class="tag tag-green">8/10</span> mitigations built</li>
+            <li>2 not applicable</li>
+            <li>Knowledge-as-Code guardrails</li>
+            <li>Environment rules YAML</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><div class="connector-line"></div></div>
+
+  <!-- LAYER 2: MCP + TOOLS -->
+  <div class="layer layer-2 open">
+    <div class="layer-header" onclick="this.parentElement.classList.toggle('open')">
+      <span class="layer-badge">L2</span>
+      <span class="layer-title">MCP Protocol &amp; Tools</span>
+      <span class="layer-desc">SDK v2.2.0 &mdash; 24 tools, dual transport, tool annotations</span>
+      <span class="layer-chevron">&#9656;</span>
+    </div>
+    <div class="layer-body">
+      <div class="tool-grid">
+        <div class="tool-cell">
+          <div class="tool-name">CI/CD</div>
+          <div class="tool-count">4 tools</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">list &middot; status &middot; trigger &middot; cancel</div>
+        </div>
+        <div class="tool-cell">
+          <div class="tool-name">SCM</div>
+          <div class="tool-count">4 tools</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">repos &middot; info &middot; PRs &middot; create PR</div>
+        </div>
+        <div class="tool-cell">
+          <div class="tool-name">GitOps</div>
+          <div class="tool-count">5 tools</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">list &middot; status &middot; sync &middot; rollback &middot; history</div>
+        </div>
+        <div class="tool-cell">
+          <div class="tool-name">Infra</div>
+          <div class="tool-count">4 tools</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">envs &middot; service PR &middot; plan &middot; merge</div>
+        </div>
+        <div class="tool-cell">
+          <div class="tool-name">Scaffold</div>
+          <div class="tool-count">2 tools</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">templates &middot; create project</div>
+        </div>
+        <div class="tool-cell">
+          <div class="tool-name">Metrics</div>
+          <div class="tool-count">5 tools</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">DORA &middot; team &middot; compare &middot; trends &middot; recs</div>
+        </div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="tag tag-green">10 READ_ONLY</span>
+        <span class="tag tag-blue">3 WRITE_SAFE</span>
+        <span class="tag tag-red">4 WRITE_DESTRUCTIVE</span>
+        <span style="color:var(--text-dim);font-size:11px;padding-top:3px">Transport: stdio (IDE) + streamable-http (cloud)</span>
+      </div>
+
+      <div class="surfaces" style="margin-top:20px">
+        <div class="surface-title">5 Delivery Surfaces</div>
+        <div class="cards cards-5">
+          <div class="card" style="text-align:center;padding:12px">
+            <div style="font-size:18px">&#128268;</div>
+            <div style="font-size:12px;font-weight:600;margin-top:4px">MCP Server</div>
+            <div style="font-size:10px;color:var(--text-dim)">IDE (VS Code, Cursor)</div>
+          </div>
+          <div class="card" style="text-align:center;padding:12px">
+            <div style="font-size:18px">&#9729;</div>
+            <div style="font-size:12px;font-weight:600;margin-top:4px">Chat API</div>
+            <div style="font-size:10px;color:var(--text-dim)">FastAPI + SSE</div>
+          </div>
+          <div class="card" style="text-align:center;padding:12px">
+            <div style="font-size:18px">&#128172;</div>
+            <div style="font-size:12px;font-weight:600;margin-top:4px">Slack Bot</div>
+            <div style="font-size:10px;color:var(--text-dim)">Bolt SDK</div>
+          </div>
+          <div class="card" style="text-align:center;padding:12px">
+            <div style="font-size:18px">&#9000;</div>
+            <div style="font-size:12px;font-weight:600;margin-top:4px">CLI</div>
+            <div style="font-size:10px;color:var(--text-dim)">ford-agent</div>
+          </div>
+          <div class="card" style="text-align:center;padding:12px">
+            <div style="font-size:18px">&#9881;</div>
+            <div style="font-size:12px;font-weight:600;margin-top:4px">GitHub Actions</div>
+            <div style="font-size:10px;color:var(--text-dim)">Scheduled DORA</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector"><div class="connector-line"></div></div>
+
+  <!-- LAYER 1: EXTERNAL SYSTEMS -->
+  <div class="layer layer-1 open">
+    <div class="layer-header" onclick="this.parentElement.classList.toggle('open')">
+      <span class="layer-badge">L1</span>
+      <span class="layer-title">External Systems</span>
+      <span class="layer-desc">GitHub, Tekton, ArgoCD, Terraform, Cloud Run</span>
+      <span class="layer-chevron">&#9656;</span>
+    </div>
+    <div class="layer-body">
+      <div class="cards cards-3">
+        <div class="card">
+          <div class="card-title">GitHub (GHEC EMU)</div>
+          <ul class="card-items">
+            <li>80+ teams, 500+ repos</li>
+            <li>Enterprise Managed Users</li>
+            <li>CodeQL v4, dependency-review v5</li>
+            <li>50K Actions minutes included</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">CI Engines</div>
+          <ul class="card-items">
+            <li><span class="tag tag-blue">Primary</span> GitHub Actions</li>
+            <li><span class="tag tag-orange">Legacy</span> Tekton (via K8s API)</li>
+            <li>ARC on GKE with spot (fallback)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Infrastructure</div>
+          <ul class="card-items">
+            <li>GCP (6-year Team Upshift deal)</li>
+            <li>Cloud Run (deployment target)</li>
+            <li>Terraform (PR-based GitOps)</li>
+            <li>ArgoCD (application sync)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- DORA METRICS -->
+<div style="max-width:1200px;margin:32px auto 0">
+  <div class="layer layer-2" style="border-left:3px solid var(--cyan)">
+    <div class="layer-header" onclick="this.parentElement.classList.toggle('open')">
+      <span class="layer-badge" style="background:var(--cyan-dim);color:var(--cyan)">DORA</span>
+      <span class="layer-title">Metrics Engine</span>
+      <span class="layer-desc">5 metrics, 2024 benchmarks, team rollups, trend analysis</span>
+      <span class="layer-chevron">&#9656;</span>
+    </div>
+    <div class="layer-body">
+      <div class="cards cards-5">
+        <div class="card" style="text-align:center">
+          <div style="font-size:12px;font-weight:600">Deploy Frequency</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">Elite: multiple/day<br>Low: monthly+</div>
+        </div>
+        <div class="card" style="text-align:center">
+          <div style="font-size:12px;font-weight:600">Lead Time</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">Elite: &lt;1hr<br>Low: 1week+</div>
+        </div>
+        <div class="card" style="text-align:center">
+          <div style="font-size:12px;font-weight:600">Change Failure</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">Elite: 0-5%<br>Low: &gt;15%</div>
+        </div>
+        <div class="card" style="text-align:center">
+          <div style="font-size:12px;font-weight:600">MTTR</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">Elite: &lt;1hr<br>Low: 1week+</div>
+        </div>
+        <div class="card" style="text-align:center">
+          <div style="font-size:12px;font-weight:600;color:var(--yellow)">AI Rework Rate</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px">Experimental<br>5th metric</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:11px;color:var(--text-dim)">
+        Production path: Faros AI ($30-60/dev/mo) or Apache DevLake (OSS)
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COST & ROI -->
+<div style="max-width:1200px;margin:0 auto">
+  <div class="metrics-row">
+    <div class="metric-box">
+      <h3>Cost Model <span style="font-size:11px;color:var(--text-dim);font-weight:400">(80 teams, 4K queries/day)</span></h3>
+      <div class="metric-row"><span class="metric-label">LLM (blended)</span><span class="metric-value">$240/mo</span></div>
+      <div class="metric-row"><span class="metric-label">Infrastructure</span><span class="metric-value">$171-327/mo</span></div>
+      <div class="metric-row"><span class="metric-label">GitHub Actions</span><span class="metric-value" style="color:var(--green)">$0 (included)</span></div>
+      <div class="metric-row"><span class="metric-label">3-Year TCO</span><span class="metric-value">~$140K</span></div>
+    </div>
+    <div class="metric-box">
+      <h3>ROI Comparison</h3>
+      <div class="metric-row"><span class="metric-label" style="color:var(--green)">This Platform</span><span class="metric-value" style="color:var(--green)">~$140K / 3yr</span></div>
+      <div class="metric-row"><span class="metric-label">Backstage</span><span class="metric-value">$800K-1.5M</span></div>
+      <div class="metric-row"><span class="metric-label">Cortex</span><span class="metric-value">$500K-1M</span></div>
+      <div class="metric-row"><span class="metric-label">Custom Portal</span><span class="metric-value">$2M-4M</span></div>
+      <div class="metric-row"><span class="metric-label">Dev Hours Saved</span><span class="metric-value" style="color:var(--yellow)">13,760/yr</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- DEPLOYMENT -->
+<div style="max-width:1200px;margin:24px auto 0">
+  <div class="cards cards-2">
+    <div class="card" style="border-left:3px solid var(--blue)">
+      <div class="card-title">Cloud Run Service 1: Chat API</div>
+      <ul class="card-items">
+        <li>CPU-bound (LLM calls)</li>
+        <li>Concurrency: 10-20</li>
+        <li>Endpoints: /api/sessions, /api/chat, /health, /ready</li>
+        <li>SSE streaming (6 event types)</li>
+      </ul>
+    </div>
+    <div class="card" style="border-left:3px solid var(--green)">
+      <div class="card-title">Cloud Run Service 2: MCP Server</div>
+      <ul class="card-items">
+        <li>I/O-bound (API calls)</li>
+        <li>Concurrency: 80+</li>
+        <li>streamable-http transport</li>
+        <li>Same Docker image, different CMD</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- PRODUCTION GAPS -->
+<div style="max-width:1200px;margin:0 auto">
+  <div class="gaps">
+    <h3>Production Gaps (Honest Assessment)</h3>
+    <div class="gap-grid">
+      <div class="gap-item">No LLM router wired in agent.py</div>
+      <div class="gap-item">No BigQuery audit pipeline</div>
+      <div class="gap-item">No OpenTelemetry integration</div>
+      <div class="gap-item">In-memory sessions only (no persistence)</div>
+      <div class="gap-item">PAT auth only (no GitHub App)</div>
+      <div class="gap-item">All 317 tests use mocks (zero integration)</div>
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--text-muted)">
+      Estimated production gap: <span style="color:var(--orange);font-weight:600">2-3 FTE for 3 months</span>
+      &nbsp;&bull;&nbsp; 4-phase path: POC (done) &rarr; Pilot (1 team) &rarr; Rollout (10 teams/sprint) &rarr; Optimization
+    </div>
+  </div>
+</div>
+
+<!-- TECH STACK -->
+<div style="max-width:1200px;margin:24px auto 0">
+  <div class="layer layer-1" style="border-left:3px solid var(--text-dim)">
+    <div class="layer-header" onclick="this.parentElement.classList.toggle('open')">
+      <span class="layer-badge" style="background:var(--surface2);color:var(--text-muted)">TECH</span>
+      <span class="layer-title">Technology Stack</span>
+      <span class="layer-desc">ADK, FastAPI, Bolt, ruff, pytest, Trivy, cosign</span>
+      <span class="layer-chevron">&#9656;</span>
+    </div>
+    <div class="layer-body">
+      <div class="cards cards-4">
+        <div class="card">
+          <div class="card-title">Agent &amp; LLM</div>
+          <ul class="card-items">
+            <li>Google ADK v2.6.2</li>
+            <li>MCP SDK v2.2.0</li>
+            <li>Gemini 2.5 Flash</li>
+            <li>Claude Sonnet 5 (Vertex AI)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Application</div>
+          <ul class="card-items">
+            <li>FastAPI (Chat API)</li>
+            <li>Bolt SDK &ge;1.30.0 (Slack)</li>
+            <li>structlog (audit logging)</li>
+            <li>OpenTelemetry (planned)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Quality</div>
+          <ul class="card-items">
+            <li>pytest (317 tests)</li>
+            <li>ruff (lint + format)</li>
+            <li>Playwright (E2E)</li>
+            <li>All tests mocked</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title">Security</div>
+          <ul class="card-items">
+            <li>Trivy (container scan)</li>
+            <li>gitleaks (secret detection)</li>
+            <li>cosign (image signing)</li>
+            <li>CodeQL v4 (SAST)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Ford Platform Modernization &mdash; POC Complete Sep 29, 2026 &bull; terzo241-platform &bull; 5 repos
+</div>
+
+</body>
+</html>
