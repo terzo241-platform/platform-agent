@@ -166,3 +166,7 @@ def build_agent(
     )
 
     return agent, registry
+
+
+# ADK CLI discovery — `adk run` / `adk web` look for this variable
+root_agent, _registry = build_agent()
